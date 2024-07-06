@@ -1,5 +1,4 @@
 import mongoose, { Schema } from 'mongoose'
-import { Roles, Status } from '~/constants/enum'
 
 const UserSchema = new Schema(
   {
@@ -13,35 +12,38 @@ const UserSchema = new Schema(
     },
     email: {
       type: String,
-      required: true
+      required: true,
+      unique: true
     },
     phone: {
       type: String,
-      required: true
+      required: true,
+      unique: true
     },
     password: {
       type: String,
       required: true
     },
     role: {
-      type: Roles,
-      default: Roles.User
+      type: Schema.Types.ObjectId,
+      ref: 'Roles',
+      default: 'User'
     },
     permission: {
       type: Schema.Types.ObjectId,
-      ref: 'Permission'
+      ref: 'Permissions'
     },
     department: {
       type: Schema.Types.ObjectId,
-      ref: 'Department'
+      ref: 'Departments'
     },
     position: {
       type: Schema.Types.ObjectId,
-      ref: 'Position'
+      ref: 'Positions'
     },
     status: {
-      type: Status,
-      default: Status.Inactive
+      type: Schema.Types.ObjectId,
+      default: 'Inactive'
     },
     email_verify_token: {
       type: String,
@@ -61,11 +63,24 @@ const UserSchema = new Schema(
       type: String,
       default: ''
     },
+    password_reseted_at: [
+      {
+        type: Date
+      }
+    ],
+
     avatar: [
       {
         type: String
       }
-    ]
+    ],
+    cover: [
+      {
+        type: String
+      }
+    ],
+    created_at: Date,
+    updated_at: Date
   },
   { timestamps: true }
 )
