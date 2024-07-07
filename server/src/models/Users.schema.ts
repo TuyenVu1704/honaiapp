@@ -1,5 +1,6 @@
-import mongoose, { Schema } from 'mongoose'
+import mongoose from 'mongoose'
 
+const Schema = mongoose.Schema
 const UserSchema = new Schema(
   {
     first_name: {
@@ -24,26 +25,24 @@ const UserSchema = new Schema(
       type: String,
       required: true
     },
-    role: {
-      type: Schema.Types.ObjectId,
-      ref: 'Roles',
+    roles: {
+      type: String,
       default: 'User'
     },
-    permission: {
-      type: Schema.Types.ObjectId,
-      ref: 'Permissions'
+    permissions: {
+      type: Array
     },
     department: {
-      type: Schema.Types.ObjectId,
-      ref: 'Departments'
+      type: String
     },
     position: {
-      type: Schema.Types.ObjectId,
-      ref: 'Positions'
+      type: String
+    },
+    device: {
+      type: Array
     },
     status: {
-      type: Schema.Types.ObjectId,
-      default: 'Inactive'
+      type: String
     },
     email_verify_token: {
       type: String,
@@ -85,6 +84,6 @@ const UserSchema = new Schema(
   { timestamps: true }
 )
 
-const UsersModel = mongoose.model('Users', UserSchema)
+const Users = mongoose.model('Users', UserSchema)
 
-export default UsersModel
+export default Users

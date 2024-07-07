@@ -1,13 +1,14 @@
-import express, { Request, Response, NextFunction } from 'express'
+import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
 import { config } from 'dotenv'
-import connect from './config/connectDB'
-import initRoutes from './routes'
+import connectDB from './config/connectDB'
 
+import initRoutes from './routes'
+import { defaultErrorHandler } from './middlewares/error.middlewares'
+connectDB()
 config()
 const app = express()
-connect.connectDB()
 app.use(cors())
 
 // Body parser
@@ -18,10 +19,7 @@ app.use(bodyParser.urlencoded({ extended: true }))
 initRoutes(app)
 
 //Error handler
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.log(err)
-  res.status(500).send({ message: err.message })
-})
+app.use(defaultErrorHandler)
 // Define PORT
 const PORT = process.env.PORT || 4001
 

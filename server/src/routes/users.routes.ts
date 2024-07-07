@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import { registerUserController } from '~/controller/users.controller'
+import { registerUserBody } from '~/middlewares/users.middlewares'
+import { validate } from '~/utils/validate'
 
 const router = Router()
 
@@ -10,6 +12,6 @@ const router = Router()
  * Request body
  *
  */
-router.post('/registerUser', registerUserController)
+router.post('/register', validate(registerUserBody), registerUserController)
 
 export default router
