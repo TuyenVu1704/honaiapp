@@ -1,11 +1,11 @@
 import { Request, Response } from 'express'
-
 import { registerUserServices } from '~/services/users.services'
+import tryCatchHandler from '~/utils/trycatchHandler'
 
-// Đăng ký tài khoản
-
-export const registerUserController = async (req: Request, res: Response) => {
+// Đăng ký tài khoản mới
+export const registerUserController = tryCatchHandler(async (req: Request, res: Response) => {
   const result = await registerUserServices(req.body)
-  console.log('result', result)
   return res.json(result)
-}
+})
+
+// Đăng nhập tài khoản
