@@ -1,7 +1,8 @@
 import mongoose from 'mongoose'
+import { IUser } from '~/constants/type'
 
 const Schema = mongoose.Schema
-const UserSchema = new Schema(
+const UserSchema = new Schema<IUser>(
   {
     first_name: {
       type: String,
@@ -17,7 +18,7 @@ const UserSchema = new Schema(
       unique: true
     },
     phone: {
-      type: String,
+      type: Number,
       required: true,
       unique: true
     },
@@ -25,22 +26,30 @@ const UserSchema = new Schema(
       type: String,
       required: true
     },
-    roles: {
+    role: {
       type: String,
-      default: 'User'
+      default: 'user'
     },
-    permissions: {
-      type: Array
-    },
-    department: {
-      type: String
-    },
-    position: {
-      type: String
-    },
-    device: {
-      type: Array
-    },
+    permissions: [
+      {
+        type: String
+      }
+    ],
+    department: [
+      {
+        type: String
+      }
+    ],
+    position: [
+      {
+        type: String
+      }
+    ],
+    device: [
+      {
+        type: String
+      }
+    ],
     status: {
       type: String
     },
@@ -78,11 +87,21 @@ const UserSchema = new Schema(
         type: String
       }
     ],
+    loginAttempts: { type: Number, required: true, default: 0 },
+    locked: {
+      type: Boolean,
+      default: false
+    },
     created_at: Date,
     updated_at: Date
   },
   { timestamps: true }
 )
+
+// Kiểm tra xem tài khoản có đang bị khóa không
+UserSchema.methods.isLocked = function () {
+  return this.locked
+}
 
 const Users = mongoose.model('Users', UserSchema)
 

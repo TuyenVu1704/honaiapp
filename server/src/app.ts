@@ -3,10 +3,9 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import { config } from 'dotenv'
 import connectDB from './config/connectDB'
-
 import initRoutes from './routes'
 import { defaultErrorHandler } from './middlewares/error.middlewares'
-import { capitalizeAfterSpace } from './utils/captalizeAfterSpace'
+
 connectDB()
 config()
 const app = express()
