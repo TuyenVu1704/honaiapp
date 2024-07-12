@@ -1,4 +1,5 @@
 import jwt, { SignOptions } from 'jsonwebtoken'
+import { ErrorWithStatusCode } from '~/config/errors'
 
 export const signToken = ({
   payload,
@@ -47,4 +48,25 @@ export const signRefreshToken = ({
 
 export const signAccessAndRefreshToken = async ({ payload }: { payload: string | Buffer | object }) => {
   return Promise.all([signAccessToken({ payload }), signRefreshToken({ payload })])
+}
+
+export const verifyToken = ({
+  token,
+  privateKey,
+  options = {
+    algorithms: ['HS256']
+  }
+}: {
+  token: string
+  privateKey: string
+  options?: jwt.VerifyOptions
+}) => {
+  return new Promise<jwt.JwtPayload>((resolve, reject) => {
+    jwt.verify(token, privateKey, options, (error, decoded) => {
+      if (error) {
+        throw reject(error)
+      }
+      resolve(decoded as jwt.JwtPayload)
+    })
+  })
 }

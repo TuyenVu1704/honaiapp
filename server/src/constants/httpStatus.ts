@@ -8,6 +8,7 @@ const httpStatus = {
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   UNPROCESSABLE_ENTITY: 422,
+  LOCKED: 423,
   INTERNAL_SERVER_ERROR: 500
 } as const
 

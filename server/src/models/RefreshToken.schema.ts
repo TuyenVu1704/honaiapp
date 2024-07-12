@@ -1,7 +1,8 @@
 import mongoose from 'mongoose'
+import { IRefreshToken } from '~/constants/type'
 
 const Schema = mongoose.Schema
-const RefreshTokenSchema = new Schema(
+const RefreshTokenSchema = new Schema<IRefreshToken>(
   {
     user_id: {
       type: Schema.Types.ObjectId,

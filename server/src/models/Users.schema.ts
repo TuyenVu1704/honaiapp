@@ -92,6 +92,14 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: false
     },
+    sessionId: {
+      type: String,
+      default: null
+    },
+    confirmToken: {
+      type: String,
+      default: null
+    },
     created_at: Date,
     updated_at: Date
   },

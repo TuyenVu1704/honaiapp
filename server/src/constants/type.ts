@@ -1,4 +1,4 @@
-import { Document } from 'mongoose'
+import { Document, ObjectId } from 'mongoose'
 
 export interface IUser extends Document {
   first_name: string
@@ -18,12 +18,20 @@ export interface IUser extends Document {
   deactivated_at: Date
   reset_password_token: string
   password_reseted_at: Date[]
-
   avatar: string[]
   cover: string[]
+  sessionId: string
+  confirmToken: string
   loginAttempts: number
   locked: boolean
   created_at: Date
   updated_at: Date
   isLocked: () => boolean
+}
+
+export interface IRefreshToken extends Document {
+  user_id: ObjectId
+  refresh_token: string
+  created_at: Date
+  updated_at: Date
 }

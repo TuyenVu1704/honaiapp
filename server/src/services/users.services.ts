@@ -7,7 +7,7 @@ import Users from '~/models/Users.schema'
 import { capitalizeAfterSpace } from '~/utils/captalizeAfterSpace'
 import { comparePassword, hashPassword } from '~/utils/hashPassword'
 import { signAccessAndRefreshToken } from '~/utils/jwt'
-import { randomPassword } from '~/utils/randomPassword'
+import { randomPassword } from '~/utils/random'
 
 // Đăng ký tài khoản mới
 export const registerUserServices = async (data: registerUserBodyType) => {
@@ -64,35 +64,37 @@ export const loginServices = async (data: loginUserBodyType) => {
   } else if (user.isLocked()) {
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.ACCOUNT_LOCKED,
-      statusCode: httpStatus.BAD_REQUEST
+      statusCode: httpStatus.LOCKED
     })
   }
   // Kiểm tra password
   const isMatch = await comparePassword(password, user.password)
-
+  // Nếu password không đúng thì tăng loginAttempts lên 1 và kiểm tra xem có đạt mức tối đa chưa
   if (!isMatch) {
-    const loginAttempts = user.loginAttempts + 1
-    // Nếu đăng nhập sai 5 lần thì khóa tài khoản
-    if (loginAttempts >= 5) {
+    user.loginAttempts += 1
+    const MAX_LOGIN_ATTEMPTS = 5
+    if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
       await Users.findByIdAndUpdate(user._id, {
-        loginAttempts,
         locked: true
       })
+      await user.save()
       throw new ErrorWithStatusCode({
         message: USER_MESSAGE.ACCOUNT_LOCKED,
-        statusCode: httpStatus.BAD_REQUEST
+        statusCode: httpStatus.LOCKED
       })
+    } else {
+      await user.save()
     }
-    //Cập nhật lại loginAttempts
-    await Users.findByIdAndUpdate(user._id, {
-      loginAttempts: 0,
-      locked: false
-    })
+
     throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.EMAIL_OR_PASSWORD_INCORRECT,
+      message: USER_MESSAGE.ACCOUNT_WILL_BE_LOCKED + ` ${MAX_LOGIN_ATTEMPTS - user.loginAttempts} times`,
       statusCode: httpStatus.BAD_REQUEST
     })
   }
+  // Reset loginAttempts về 0
+  await Users.findByIdAndUpdate(user._id, {
+    loginAttempts: 0
+  })
 
   // Ký JWT
   const [accessToken, refreshToken] = await signAccessAndRefreshToken({

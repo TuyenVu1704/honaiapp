@@ -7,7 +7,7 @@ const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}
 const updateUsers = async () => {
   await mongoose.connect(uri)
   try {
-    await Users.updateMany({}, { $set: { locked: false, loginAttempts: 0 } })
+    await Users.updateMany({}, { $set: { confirmToken: null } })
     console.log('Update User successfully')
   } catch (error) {
     console.log('Update User failed')

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { loginUserController, registerUserController } from '~/controller/users.controller'
+import { accessTokenValidation } from '~/middlewares/accessToken.middlewares'
 import { loginUserBody, registerUserBody } from '~/middlewares/users.middlewares'
 import { validate } from '~/utils/validate'
 
@@ -28,5 +29,9 @@ export default router
  * Method: POST
  * Request: /users/logout
  * Request Header: Authorization
- *
+ * body: refreshToken
  */
+
+router.post('/logout', accessTokenValidation, (req, res) => {
+  res.json({ message: 'Logout successfully' })
+})
