@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import { loginUserController, registerUserController } from '~/controller/users.controller'
-import { accessTokenValidation } from '~/middlewares/accessToken.middlewares'
+import { accessTokenMiddleware } from '~/middlewares/accessToken.middlewares'
+import { refreshTokenMiddleware } from '~/middlewares/refreshToken.middlewares'
+
 import { loginUserBody, registerUserBody } from '~/middlewares/users.middlewares'
 import { validate } from '~/utils/validate'
 
@@ -32,6 +34,6 @@ export default router
  * body: refreshToken
  */
 
-router.post('/logout', accessTokenValidation, (req, res) => {
+router.post('/logout', accessTokenMiddleware, refreshTokenMiddleware, (req, res) => {
   res.json({ message: 'Logout successfully' })
 })

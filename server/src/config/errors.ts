@@ -1,3 +1,4 @@
+import { JsonWebTokenError } from 'jsonwebtoken'
 import httpStatus from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/messages'
 
@@ -24,5 +25,11 @@ export class EntityError extends ErrorWithStatusCode {
   constructor({ message = USER_MESSAGE.VALIDATTION_ERROR, errors }: { message?: string; errors: TypeError }) {
     super({ message, statusCode: httpStatus.UNPROCESSABLE_ENTITY })
     this.errors = errors
+  }
+}
+
+export class AuthError extends ErrorWithStatusCode {
+  constructor({ message }: { message: string }) {
+    super({ message, statusCode: httpStatus.UNAUTHORIZED })
   }
 }

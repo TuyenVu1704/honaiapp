@@ -15,7 +15,12 @@ export const USER_MESSAGE = {
   ACCOUNT_WILL_BE_LOCKED: 'Account will be locked',
 
   //Token
-  ACCESS_TOKEN_INVALID: 'Access token is invalid',
+  INVALID_TOKEN: 'Invalid token',
+  ACCESS_TOKEN_IS_INVALID: 'Access token is invalid',
   ACCESS_TOKEN_IS_REQUIRED: 'Access token is required',
-  REFRESH_TOKEN_INVALID: 'Refresh token is invalid'
+  ACCESS_TOKEN_IS_EXPIRED: 'Access token is expired',
+  REFRESH_TOKEN_INVALID: 'Refresh token is invalid',
+  REFRESH_TOKEN_IS_REQUIRED: 'Refresh token is required',
+  REFRESH_TOKEN_IS_STRING: 'Refresh token must be a string',
+  REFRESH_TOKEN_IS_EXPIRED: 'Refresh token is expired'
 } as const

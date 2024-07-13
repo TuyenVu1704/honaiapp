@@ -6,7 +6,8 @@ import RefreshToken from '~/models/RefreshToken.schema'
 import Users from '~/models/Users.schema'
 import { capitalizeAfterSpace } from '~/utils/captalizeAfterSpace'
 import { comparePassword, hashPassword } from '~/utils/hashPassword'
-import { signAccessAndRefreshToken } from '~/utils/jwt'
+import { signToken } from '~/utils/jwt'
+
 import { randomPassword } from '~/utils/random'
 
 // Đăng ký tài khoản mới
@@ -97,8 +98,21 @@ export const loginServices = async (data: loginUserBodyType) => {
   })
 
   // Ký JWT
-  const [accessToken, refreshToken] = await signAccessAndRefreshToken({
-    payload: { user_id: user._id, role: user.role }
+  const accessToken = await signToken({
+    payload: {
+      _id: user._id,
+      role: user.role
+    },
+    secretKey: process.env.ACCESS_TOKEN as string,
+    expiresIn: 10 * 5
+  })
+  const refreshToken = await signToken({
+    payload: {
+      _id: user._id,
+      role: user.role
+    },
+    secretKey: process.env.REFRESH_TOKEN as string,
+    expiresIn: '7d'
   })
   // Lưu refreshToken vào mongodb
   const refreshTokenModel = new RefreshToken({
