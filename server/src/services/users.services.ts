@@ -1,6 +1,7 @@
 import { ErrorWithStatusCode } from '~/config/errors'
 import httpStatus from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/messages'
+import { refreshTokenBodyType } from '~/middlewares/refreshToken.middlewares'
 import { loginUserBodyType, registerUserBodyType } from '~/middlewares/users.middlewares'
 import RefreshToken from '~/models/RefreshToken.schema'
 import Users from '~/models/Users.schema'
@@ -104,7 +105,7 @@ export const loginServices = async (data: loginUserBodyType) => {
       role: user.role
     },
     secretKey: process.env.ACCESS_TOKEN as string,
-    expiresIn: 10 * 5
+    expiresIn: process.env.EXPIRE_ACCESS_TOKEN as string
   })
   const refreshToken = await signToken({
     payload: {
@@ -112,14 +113,23 @@ export const loginServices = async (data: loginUserBodyType) => {
       role: user.role
     },
     secretKey: process.env.REFRESH_TOKEN as string,
-    expiresIn: '7d'
+    expiresIn: process.env.EXPIRE_REFRESH_TOKEN as string
   })
-  // Lưu refreshToken vào mongodb
-  const refreshTokenModel = new RefreshToken({
-    user_id: user._id,
-    refresh_token: refreshToken
-  })
-  await refreshTokenModel.save()
+  // Kiểm tra user_id đã có refresh token trong db chưa
+  const refreshTokenExist = await RefreshToken.findOne({ user_id: user._id })
+  // Nếu có thì update refresh token
+  if (refreshTokenExist) {
+    await RefreshToken.findByIdAndUpdate(refreshTokenExist._id, {
+      refresh_token: refreshToken
+    })
+  } else {
+    // Nếu chưa thì tạo mới refresh token
+    const newRefreshToken = new RefreshToken({
+      user_id: user._id,
+      refresh_token: refreshToken
+    })
+    await newRefreshToken.save()
+  }
 
   // Trả về thông tin token
   return {
@@ -128,5 +138,23 @@ export const loginServices = async (data: loginUserBodyType) => {
       accessToken,
       refreshToken
     }
+  }
+}
+
+// Đăng xuất tài khoản
+export const logoutServices = async (data: refreshTokenBodyType) => {
+  const { refresh_token } = data
+  // Kiểm tra refresh token có tồn tại trong db không
+  const refreshToken = await RefreshToken.findOne({ refresh_token })
+  if (!refreshToken) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.REFRESH_TOKEN_USED_OR_NOT_IN_DATABASE,
+      statusCode: httpStatus.UNAUTHORIZED
+    })
+  }
+  // Xóa refresh token trong db
+  await RefreshToken.findByIdAndDelete(refreshToken._id)
+  return {
+    message: USER_MESSAGE.LOGOUT_SUCCESSFULLY
   }
 }

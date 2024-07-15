@@ -1,5 +1,6 @@
+import { log } from 'console'
 import { Router } from 'express'
-import { loginUserController, registerUserController } from '~/controller/users.controller'
+import { loginUserController, logoutUserController, registerUserController } from '~/controller/users.controller'
 import { accessTokenMiddleware } from '~/middlewares/accessToken.middlewares'
 import { refreshTokenMiddleware } from '~/middlewares/refreshToken.middlewares'
 
@@ -34,6 +35,4 @@ export default router
  * body: refreshToken
  */
 
-router.post('/logout', accessTokenMiddleware, refreshTokenMiddleware, (req, res) => {
-  res.json({ message: 'Logout successfully' })
-})
+router.post('/logout', accessTokenMiddleware, refreshTokenMiddleware, logoutUserController)

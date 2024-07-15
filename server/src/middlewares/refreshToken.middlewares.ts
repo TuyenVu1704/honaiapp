@@ -22,14 +22,33 @@ export type refreshTokenBodyType = z.infer<typeof refreshTokenBody>
 // Middleware kiểm tra refresh token
 export const refreshTokenMiddleware = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
   const refresh_token = req.body as refreshTokenBodyType
+
+  // Kiểm tra refresh token có trong body không
   if (!refresh_token) {
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.REFRESH_TOKEN_IS_REQUIRED,
       statusCode: httpStatus.UNAUTHORIZED
     })
   }
-  const decoded = jwt.verify(refresh_token.refresh_token, process.env.REFRESH_TOKEN as string) as JwtPayload
-  req.decoded_refresh_token = decoded
 
-  next()
+  // Verify refresh token
+  jwt.verify(refresh_token.refresh_token, process.env.REFRESH_TOKEN as string, (error, decoded) => {
+    if (error) {
+      if (error.name === 'JsonWebTokenError') {
+        throw new ErrorWithStatusCode({
+          message: 'RefreshToken' + ' ' + error.message,
+          statusCode: httpStatus.UNAUTHORIZED
+        })
+      } else {
+        throw new ErrorWithStatusCode({
+          message: 'RefreshToken' + ' ' + error.message,
+          statusCode: httpStatus.UNPROCESSABLE_ENTITY
+        })
+      }
+    }
+    // Gán decoded refresh token vào biến decoded_refresh_token
+
+    req.decoded_refresh_token = decoded as JwtPayload
+    next()
+  })
 })

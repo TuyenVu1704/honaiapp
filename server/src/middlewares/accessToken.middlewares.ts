@@ -8,7 +8,7 @@ import jwt from 'jsonwebtoken'
 
 export const accessTokenMiddleware = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
   const accessToken = req.headers.authorization?.split(' ')[1]
-  console.log(accessToken)
+
   if (!accessToken) {
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.ACCESS_TOKEN_IS_REQUIRED,
@@ -18,11 +18,11 @@ export const accessTokenMiddleware = tryCatchHandler(async (req: Request, res: R
   jwt.verify(accessToken, process.env.ACCESS_TOKEN as string, (error, decoded) => {
     if (error) {
       throw new ErrorWithStatusCode({
-        message: USER_MESSAGE.ACCESS_TOKEN_IS_INVALID,
+        message: 'Accesstoken' + ' ' + error.message,
         statusCode: httpStatus.UNAUTHORIZED
       })
     }
-    console.log(decoded)
+
     req.user = decoded as JwtPayload
     next()
   })

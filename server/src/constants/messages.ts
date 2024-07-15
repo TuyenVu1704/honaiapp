@@ -4,6 +4,7 @@ export const USER_MESSAGE = {
   // Auth
   REGISTER_SUCCESSFULLY: 'Register successfully',
   LOGIN_SUCCESSFULLY: 'Login successfully',
+  LOGOUT_SUCCESSFULLY: 'Logout successfully',
 
   //Email
   EMAIL_OR_PHONE_EXISTED: 'Email or phone number already exists',
@@ -22,5 +23,6 @@ export const USER_MESSAGE = {
   REFRESH_TOKEN_INVALID: 'Refresh token is invalid',
   REFRESH_TOKEN_IS_REQUIRED: 'Refresh token is required',
   REFRESH_TOKEN_IS_STRING: 'Refresh token must be a string',
-  REFRESH_TOKEN_IS_EXPIRED: 'Refresh token is expired'
+  REFRESH_TOKEN_IS_EXPIRED: 'Refresh token is expired',
+  REFRESH_TOKEN_USED_OR_NOT_IN_DATABASE: 'Refresh token is used or not in database'
 } as const
