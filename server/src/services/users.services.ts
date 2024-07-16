@@ -153,7 +153,7 @@ export const resendEmailVerifyServices = async (data: resendEmailVerifyTokenBody
     email_verify_token
   })
   return {
-    message: USER_MESSAGE.EMAIL_VERIFY_SUCCESSFULLY
+    message: USER_MESSAGE.RESEND_EMAIL_VERIFY_SUCCESSFULLY
   }
 }
 

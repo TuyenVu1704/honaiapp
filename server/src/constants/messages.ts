@@ -12,6 +12,7 @@ export const USER_MESSAGE = {
   EMAIL_OR_PASSWORD_EXISTED: 'Email or password already exists',
   EMAIL_OR_PASSWORD_INCORRECT: 'Email or password is incorrect',
   EMAIL_NOT_FOUND: 'Email not found',
+  RESEND_EMAIL_VERIFY_SUCCESSFULLY: 'Resend email verify token successfully',
 
   // Account
   ACCOUNT_LOCKED: 'Account is locked',
