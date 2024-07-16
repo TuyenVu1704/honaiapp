@@ -37,12 +37,12 @@ router.post('/verify-email', emailVerifyTokenMiddleware, verifyEmailController)
 
 /**
  * Description: Resend Email Verify Token Sau khi user không nhận được email verify token
- * Method: PATCH
+ * Method: POST
  * Request: /users/resend-email-verify-token
  * Request body: {}
  * Roles: Admin
  * */
-router.patch(
+router.post(
   '/resend-email-verify-token',
   checkIsAdmin,
   validate(resendEmailVerifyTokenBody),
