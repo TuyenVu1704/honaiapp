@@ -1,4 +1,5 @@
 import { Document, ObjectId } from 'mongoose'
+import { Roles } from './enum'
 
 export interface IUser extends Document {
   first_name: string
@@ -6,7 +7,7 @@ export interface IUser extends Document {
   email: string
   phone: number
   password: string
-  role: string
+  role: Roles
   permissions: string[]
   department: string[]
   position: string[]
@@ -14,19 +15,20 @@ export interface IUser extends Document {
   status: string
   email_verify_token: string
   email_verified: boolean
-  actived_at: Date
-  deactivated_at: Date
+  // actived_at: Date
+  // deactivated_at: Date
   reset_password_token: string
   password_reseted_at: Date[]
   avatar: string[]
   cover: string[]
-  sessionId: string
+  // sessionId: string
   confirmToken: string
   loginAttempts: number
   locked: boolean
   created_at: Date
   updated_at: Date
   isLocked: () => boolean
+  isActive: () => boolean
 }
 
 export interface IRefreshToken extends Document {

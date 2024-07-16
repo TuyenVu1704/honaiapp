@@ -16,7 +16,7 @@ export const registerUserBody = z
       message:
         'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character'
     }),
-    role: z.string()
+    role: z.number().default(1)
   })
   .strict()
 
@@ -60,3 +60,12 @@ export const loginUserRes = z.object({
 })
 
 export type loginUserResType = z.infer<typeof loginUserRes>
+
+// Resend email verify token body
+export const resendEmailVerifyTokenBody = z
+  .object({
+    email: z.string().email({ message: 'Invalid email address' })
+  })
+  .strict()
+
+export type resendEmailVerifyTokenBodyType = z.infer<typeof resendEmailVerifyTokenBody>

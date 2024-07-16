@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { Roles } from '~/constants/enum'
 import { IUser } from '~/constants/type'
 
 const Schema = mongoose.Schema
@@ -27,8 +28,9 @@ const UserSchema = new Schema<IUser>(
       required: true
     },
     role: {
-      type: String,
-      default: 'user'
+      type: Number,
+      enum: [Roles.ADMIN, Roles.USER],
+      default: Roles.USER
     },
     permissions: [
       {
@@ -61,12 +63,12 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: false
     },
-    actived_at: {
-      type: Date
-    },
-    deactivated_at: {
-      type: Date
-    },
+    // actived_at: {
+    //   type: Date
+    // },
+    // deactivated_at: {
+    //   type: Date
+    // },
     reset_password_token: {
       type: String,
       default: ''
@@ -92,10 +94,10 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: false
     },
-    sessionId: {
-      type: String,
-      default: null
-    },
+    // sessionId: {
+    //   type: String,
+    //   default: null
+    // },
     confirmToken: {
       type: String,
       default: null
@@ -109,6 +111,10 @@ const UserSchema = new Schema<IUser>(
 // Kiểm tra xem tài khoản có đang bị khóa không
 UserSchema.methods.isLocked = function () {
   return this.locked
+}
+// Kiểm tra xem tài khoản đã active chưa
+UserSchema.methods.isActive = function () {
+  return this.email_verified && !this.locked
 }
 
 const Users = mongoose.model('Users', UserSchema)

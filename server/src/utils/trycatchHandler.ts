@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express'
+import { validate } from './validate'
 
 const tryCatchHandler = (fn: RequestHandler) => {
   return async (req: Request, res: Response, next: NextFunction) => {

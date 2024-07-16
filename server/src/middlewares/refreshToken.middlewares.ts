@@ -2,17 +2,16 @@ import { Request, Response, NextFunction } from 'express'
 import { ErrorWithStatusCode } from '~/config/errors'
 import httpStatus from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/messages'
-import jwt, { JwtPayload, VerifyOptions } from 'jsonwebtoken'
-import tryCatchHandler from '~/utils/trycatchHandler'
+import jwt, { JwtPayload } from 'jsonwebtoken'
 import { z } from 'zod'
+import { config } from 'dotenv'
+import tryCatchHandler from '~/utils/trycatchHandler'
+config()
 
 // Body kiểm tra refresh token
 export const refreshTokenBody = z
   .object({
-    refresh_token: z.string({
-      required_error: USER_MESSAGE.REFRESH_TOKEN_IS_REQUIRED,
-      invalid_type_error: USER_MESSAGE.REFRESH_TOKEN_IS_STRING
-    })
+    refresh_token: z.string()
   })
   .strict()
 
@@ -24,16 +23,19 @@ export const refreshTokenMiddleware = tryCatchHandler(async (req: Request, res: 
   const refresh_token = req.body as refreshTokenBodyType
 
   // Kiểm tra refresh token có trong body không
-  if (!refresh_token) {
+  if (!refresh_token.refresh_token) {
+    console.log(1)
     throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.REFRESH_TOKEN_IS_REQUIRED,
+      message: USER_MESSAGE.REFRESH_TOKEN_IN_BODY_IS_REQUIRED,
       statusCode: httpStatus.UNAUTHORIZED
     })
   }
 
   // Verify refresh token
+
   jwt.verify(refresh_token.refresh_token, process.env.REFRESH_TOKEN as string, (error, decoded) => {
     if (error) {
+      console.log(2)
       if (error.name === 'JsonWebTokenError') {
         throw new ErrorWithStatusCode({
           message: 'RefreshToken' + ' ' + error.message,
@@ -46,8 +48,7 @@ export const refreshTokenMiddleware = tryCatchHandler(async (req: Request, res: 
         })
       }
     }
-    // Gán decoded refresh token vào biến decoded_refresh_token
-
+    //Gán decoded refresh token vào biến decoded_refresh_token
     req.decoded_refresh_token = decoded as JwtPayload
     next()
   })
