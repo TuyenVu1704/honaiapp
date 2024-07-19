@@ -1,10 +1,14 @@
 import { Request, Response } from 'express'
 import { JwtPayload } from 'jsonwebtoken'
+import { getAllUserQueryType } from '~/middlewares/users.middlewares'
 import {
+  getAllUsersServices,
+  getMeServices,
   loginServices,
   logoutServices,
   registerUserServices,
   resendEmailVerifyServices,
+  updateUserProfileServices,
   verifyEmailServices
 } from '~/services/users.services'
 import tryCatchHandler from '~/utils/trycatchHandler'
@@ -19,6 +23,29 @@ export const registerUserController = tryCatchHandler(async (req: Request, res: 
 // Verify Email thành công sau khi đăng ký tài khoản yêu cầu đăng nhập và đưa vào trang thay đổi mật khẩu
 export const verifyEmailController = tryCatchHandler(async (req: Request, res: Response) => {
   const result = await verifyEmailServices(req.decoded_email_verify_token as JwtPayload, req.body)
+  return res.json(result)
+})
+
+/**
+ * Get Me
+ */
+
+export const getMeController = tryCatchHandler(async (req: Request, res: Response) => {
+  const result = await getMeServices(req.user as JwtPayload)
+  return res.json(result)
+})
+
+/**
+ * Get All Users
+ * Roles: Admin
+ * Filter: name, email, phone, department, position, role
+ * Pagination: page, limit
+ * Sort: department, position, role,
+ */
+
+export const getAllUsersController = tryCatchHandler(async (req: Request, res: Response) => {
+  const queries = { ...req.query }
+  const result = await getAllUsersServices(queries as getAllUserQueryType)
   return res.json(result)
 })
 
@@ -38,6 +65,16 @@ export const loginUserController = tryCatchHandler(async (req: Request, res: Res
 // User Đăng xuất tài khoản
 export const logoutUserController = tryCatchHandler(async (req: Request, res: Response) => {
   const result = await logoutServices(req.body)
+  return res.json(result)
+})
+
+/**
+ * User update thông tin cá nhân
+ *
+ */
+export const updateUserProfileController = tryCatchHandler(async (req: Request, res: Response) => {
+  const result = await updateUserProfileServices(req.body, req.user as JwtPayload)
+
   return res.json(result)
 })
 

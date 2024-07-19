@@ -37,5 +37,9 @@ export const USER_MESSAGE = {
   USER_NOT_FOUND: 'User not found',
   USER_IS_VERIFIED: 'User is verified',
   USER_IS_NOT_ADMIN: 'User is not admin',
-  USER_EMAIL_NOT_VERIFIED: 'User email not verified'
+  USER_EMAIL_NOT_VERIFIED: 'User email not verified',
+  GET_ME_SUCCESSFULLY: 'Get me successfully',
+  GET_ALL_USERS_SUCCESSFULLY: 'Get all users successfully',
+  GET_ALL_USERS_FAILED: 'Get all users failed',
+  UPDATE_PROFILE_SUCCESSFULLY: 'Update profile successfully'
 } as const

@@ -1,17 +1,25 @@
 import { log } from 'console'
 import { Router } from 'express'
 import {
+  getAllUsersController,
+  getMeController,
   loginUserController,
   logoutUserController,
   registerUserController,
   resendEmailVerifyTokenController,
+  updateUserProfileController,
   verifyEmailController
 } from '~/controller/users.controller'
-import { accessTokenMiddleware, checkIsAdmin } from '~/middlewares/accessToken.middlewares'
+import { accessTokenMiddleware, checkIsAdmin, checkIsEmailVerified } from '~/middlewares/accessToken.middlewares'
 import { emailVerifyTokenMiddleware } from '~/middlewares/emailVerifyToken.middlewares'
 import { refreshTokenMiddleware } from '~/middlewares/refreshToken.middlewares'
 
-import { loginUserBody, registerUserBody, resendEmailVerifyTokenBody } from '~/middlewares/users.middlewares'
+import {
+  loginUserBody,
+  registerUserBody,
+  resendEmailVerifyTokenBody,
+  updateUserProfileBody
+} from '~/middlewares/users.middlewares'
 import { validate } from '~/utils/validate'
 
 const router = Router()
@@ -48,6 +56,27 @@ router.post(
   validate(resendEmailVerifyTokenBody),
   resendEmailVerifyTokenController
 )
+
+/**
+ * Description: Get Me
+ * Method: GET
+ * Request: /users/me
+ * Request Header: Authorization
+ *
+ */
+
+router.get('/me', accessTokenMiddleware, checkIsEmailVerified, getMeController)
+
+/**
+ * Description: Get All Users
+ * Method: GET
+ * Request: /users/get-all-users
+ * Request Header: Authorization
+ * Roles: Admin
+ */
+
+router.get('/get-all-users', accessTokenMiddleware, checkIsAdmin, getAllUsersController)
+
 /**
  * Description: Đăng nhập tài khoản
  * Method: POST
@@ -66,4 +95,20 @@ export default router
  * body: refreshToken
  */
 
-router.post('/logout', accessTokenMiddleware, refreshTokenMiddleware, logoutUserController)
+router.post(
+  '/logout',
+  accessTokenMiddleware,
+  refreshTokenMiddleware,
+  validate(updateUserProfileBody),
+  logoutUserController
+)
+
+/**
+ * Description: User cập nhật thông tin cá nhân
+ * Method: PATCH
+ * Request: /users/update-profile
+ * Request Header: Authorization
+ * body: {  avatar, cover }
+ *
+ */
+router.patch('/update-profile', accessTokenMiddleware, updateUserProfileController)

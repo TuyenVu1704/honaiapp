@@ -3,9 +3,11 @@ import httpStatus from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/messages'
 import { refreshTokenBodyType } from '~/middlewares/refreshToken.middlewares'
 import {
+  getMeResType,
   loginUserBodyType,
   registerUserBodyType,
-  resendEmailVerifyTokenBodyType
+  resendEmailVerifyTokenBodyType,
+  updateUserProfileBodyType
 } from '~/middlewares/users.middlewares'
 import RefreshToken from '~/models/RefreshToken.schema'
 import Users from '~/models/Users.schema'
@@ -17,6 +19,7 @@ import { randomPassword } from '~/utils/random'
 import { emailVerifyTokenBodyType } from '~/middlewares/emailVerifyToken.middlewares'
 import { ObjectId } from 'mongodb'
 import { JwtPayload } from 'jsonwebtoken'
+import e from 'express'
 
 /**
  * Description: Đăng ký tài khoản mới
@@ -114,6 +117,56 @@ export const verifyEmailServices = async (decoded: JwtPayload, data: emailVerify
   return {
     message: USER_MESSAGE.EMAIL_VERIFY_SUCCESSFULLY
   }
+}
+
+/**
+ * Description: Get Me
+ * Req.user: _id
+ * Response: message, data
+ */
+
+export const getMeServices = async (decoded: JwtPayload) => {
+  const { _id } = decoded
+  const user = await Users.findById(_id)
+  if (!user) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.USER_NOT_FOUND,
+      statusCode: httpStatus.NOT_FOUND
+    })
+  }
+  // trả về thông tin user
+  return {
+    message: USER_MESSAGE.GET_ME_SUCCESSFULLY,
+    data: {
+      user: _.pick(user, ['first_name', 'last_name', 'email', 'phone', 'department', 'position', 'avatar', 'cover'])
+    }
+  }
+}
+
+/**
+ * Description: Get All Users
+ * Roles: Admin
+ * Filter: first_name, email, phone, department, position, role
+ * Pagination: page, limit
+ * Sort: department, position, role
+ * Req.query: page, limit
+ * Response: message, data
+ * Data: users: [{ _id, first_name, last_name, email, phone, department, position,role, avatar}]
+ * @param query
+ * @returns
+ */
+
+export const getAllUsersServices = async (query: any) => {
+  // Tách các trường đặc biệt
+  const excludeFields = ['page', 'limit', 'sort', 'fields']
+  // Xoá các trường đặc biệt ra khỏi query
+  excludeFields.forEach((el) => delete query[el])
+  // Format lại query theo cú pháp mongodb
+  let queryString = JSON.stringify(query)
+  queryString = queryString.replace(/\b(gt|gte|lt|lte)\b/g, (match) => `$${match}`)
+  const formatedQuery = JSON.parse(queryString)
+
+  // Filter
 }
 
 /**
@@ -279,5 +332,53 @@ export const logoutServices = async (data: refreshTokenBodyType) => {
   await RefreshToken.findByIdAndDelete(refreshToken._id)
   return {
     message: USER_MESSAGE.LOGOUT_SUCCESSFULLY
+  }
+}
+
+/**
+ * Description: User update thông tin cá nhân
+ * Req.body:  avatar, cover
+ * Req.user: _id
+ * Response: message
+ * @param data
+ * @param decoded
+ * @returns
+ */
+
+export const updateUserProfileServices = async (data: updateUserProfileBodyType, decoded: JwtPayload) => {
+  const { _id } = decoded
+  const { avatar, cover } = data
+  const user = await Users.findById(_id)
+  if (!user) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.USER_NOT_FOUND,
+      statusCode: httpStatus.NOT_FOUND
+    })
+  }
+  /**
+   * Nếu avatar hoặc cover có giá trị thì kiểm tra xem user.avatar hoặc user.cover đã có 3 ảnh chưa
+   * Nếu đã có 3 ảnh thì xóa ảnh đầu tiên và thêm ảnh mới vào cuối
+   * Nếu chưa có 3 ảnh thì thêm ảnh mới vào cuối
+   */
+
+  if (avatar) {
+    if (user.avatar.length >= 3) {
+      user.avatar.shift()
+      user.avatar.push(avatar)
+    } else {
+      user.avatar.push(avatar)
+    }
+  }
+  if (cover) {
+    if (user.cover.length >= 3) {
+      user.cover.shift()
+      user.cover.push(cover)
+    }
+    user.cover.push(cover)
+  }
+
+  await user.save()
+  return {
+    message: USER_MESSAGE.UPDATE_PROFILE_SUCCESSFULLY
   }
 }

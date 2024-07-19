@@ -4,7 +4,7 @@ import { EntityError } from '~/config/errors'
 export const validate = (schema: any) => (req: Request, res: Response, next: NextFunction) => {
   try {
     // schema.parse(req.body) là cách để kiểm tra dữ liệu từ body của request
-    schema.parse(req.body)
+    schema.parse({ body: req.body, query: req.query, params: req.params })
     // Nếu không có lỗi thì chuyển tiếp cho middleware tiếp theo
     next()
   } catch (error) {

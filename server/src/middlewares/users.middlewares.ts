@@ -1,6 +1,6 @@
 import z from 'zod'
 import { passwordRegex, phoneRegex } from '~/utils/regex'
-import _ from 'lodash'
+import _, { last } from 'lodash'
 
 // Register user body
 export const registerUserBody = z
@@ -69,3 +69,46 @@ export const resendEmailVerifyTokenBody = z
   .strict()
 
 export type resendEmailVerifyTokenBodyType = z.infer<typeof resendEmailVerifyTokenBody>
+
+// Get me response
+export const getMeRes = z.object({
+  message: z.string(),
+  data: z.object({
+    user: z.object({
+      first_name: z.string(),
+      last_name: z.string(),
+      email: z.string(),
+      phone: z.string(),
+      department: z.string(),
+      position: z.string(),
+      avartar: z.string(),
+      cover: z.string()
+    })
+  })
+})
+
+export type getMeResType = z.infer<typeof getMeRes>
+
+export const getAllUserQuery = z.object({
+  page: z.string().optional(),
+  limit: z.string().optional(),
+  sort: z.string().optional(),
+  fields: z.string().optional(),
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  department: z.string().optional(),
+  position: z.string().optional(),
+  role: z.string().optional()
+})
+
+export type getAllUserQueryType = z.infer<typeof getAllUserQuery>
+
+//Update user profile body
+export const updateUserProfileBody = z.object({
+  avatar: z.string().optional(),
+  cover: z.string().optional()
+})
+
+export type updateUserProfileBodyType = z.infer<typeof updateUserProfileBody>
