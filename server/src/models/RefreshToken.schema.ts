@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import { IRefreshToken } from '~/constants/type'
+import { IRefreshToken } from '~/constants/type.schema'
 
 const Schema = mongoose.Schema
 const RefreshTokenSchema = new Schema<IRefreshToken>(

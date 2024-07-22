@@ -3,7 +3,7 @@ import httpStatus from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/messages'
 import { refreshTokenBodyType } from '~/middlewares/refreshToken.middlewares'
 import {
-  getMeResType,
+  adminUpdateUserProfileBodyType,
   loginUserBodyType,
   registerUserBodyType,
   resendEmailVerifyTokenBodyType,
@@ -20,6 +20,7 @@ import { emailVerifyTokenBodyType } from '~/middlewares/emailVerifyToken.middlew
 import { ObjectId } from 'mongodb'
 import { JwtPayload } from 'jsonwebtoken'
 import e from 'express'
+import { IUser } from '~/constants/type.schema'
 
 /**
  * Description: Đăng ký tài khoản mới
@@ -125,9 +126,17 @@ export const verifyEmailServices = async (decoded: JwtPayload, data: emailVerify
  * Response: message, data
  */
 
-export const getMeServices = async (decoded: JwtPayload) => {
-  const { _id } = decoded
-  const user = await Users.findById(_id)
+export const getMeServices = async (user_id: string) => {
+  const user = await Users.findById(user_id).select([
+    '-password',
+    '-email_verify_token',
+    '-reset_password_token',
+    '-password_reseted_at',
+    '-loginAttempts',
+    '-locked',
+    '-confirmToken',
+    '-__v'
+  ])
   if (!user) {
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.USER_NOT_FOUND,
@@ -135,10 +144,35 @@ export const getMeServices = async (decoded: JwtPayload) => {
     })
   }
   // trả về thông tin user
+  // Lấy thông tin các trường cần thiết bằng mongoose
+
   return {
     message: USER_MESSAGE.GET_ME_SUCCESSFULLY,
     data: {
-      user: _.pick(user, ['first_name', 'last_name', 'email', 'phone', 'department', 'position', 'avatar', 'cover'])
+      user
+    }
+  }
+}
+
+/**
+ * Description: Get Profile User
+ * Roles: Admin
+ * Req.params: id
+ * Response: message, data
+ */
+
+export const getProfileUserService = async (id: string) => {
+  const user = await Users.findById(id).select('-password')
+  if (!user) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.USER_NOT_FOUND,
+      statusCode: httpStatus.NOT_FOUND
+    })
+  }
+  return {
+    message: USER_MESSAGE.GET_PROFILE_SUCCESSFULLY,
+    data: {
+      user
     }
   }
 }
@@ -167,6 +201,100 @@ export const getAllUsersServices = async (query: any) => {
   const formatedQuery = JSON.parse(queryString)
 
   // Filter
+}
+
+/**
+ * Description: User update thông tin cá nhân
+ * Req.body:  avatar, cover
+ * Req.user: _id
+ * Response: message
+ * @param data
+ * @param decoded
+ * @returns
+ */
+
+export const updateUserProfileServices = async (data: updateUserProfileBodyType, _id: string) => {
+  const { avatar, cover } = data
+  const user = await Users.findById(_id)
+  if (!user) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.USER_NOT_FOUND,
+      statusCode: httpStatus.NOT_FOUND
+    })
+  }
+  /**
+   * Nếu avatar hoặc cover có giá trị thì kiểm tra xem user.avatar hoặc user.cover đã có 3 ảnh chưa
+   * Nếu đã có 3 ảnh thì xóa ảnh đầu tiên và thêm ảnh mới vào cuối
+   * Nếu chưa có 3 ảnh thì thêm ảnh mới vào cuối
+   */
+
+  if (avatar) {
+    if (user.avatar.length >= 3) {
+      user.avatar.shift()
+      user.avatar.push(avatar)
+    } else {
+      user.avatar.push(avatar)
+    }
+  }
+  if (cover) {
+    if (user.cover.length >= 3) {
+      user.cover.shift()
+      user.cover.push(cover)
+    }
+    user.cover.push(cover)
+  }
+
+  await user.save()
+  return {
+    message: USER_MESSAGE.UPDATE_PROFILE_SUCCESSFULLY
+  }
+}
+
+/**
+ * Description: Admin update thông tin user
+ * Req.body: first_name, last_name, email, phone, role, permission, department, position, device, email_verified, avatar
+ * Req.params: id
+ * Req.user: _id
+ * Response: message,data
+ */
+
+export const adminUpdateUserProfileServices = async (data: adminUpdateUserProfileBodyType, id: string) => {
+  const user = await Users.findById(id)
+  if (!user) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.USER_NOT_FOUND,
+      statusCode: httpStatus.NOT_FOUND
+    })
+  }
+  // Kiểm tra email và phone đã tồn tại chưa
+  if (data.email) {
+    const emailExist = (await Users.findOne({ email: data.email })) as { _id: string }
+    if (emailExist && emailExist._id.toString() !== id) {
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.EMAIL_EXISTED,
+        statusCode: httpStatus.BAD_REQUEST
+      })
+    }
+  }
+  if (data.phone) {
+    const phoneExist = (await Users.findOne({ phone: data.phone })) as { _id: string }
+    if (phoneExist && phoneExist._id.toString() !== id) {
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.PHONE_EXISTED,
+        statusCode: httpStatus.BAD_REQUEST
+      })
+    }
+  }
+  // Update thông tin user
+  await Users.findByIdAndUpdate(id, {
+    ...data,
+    updated_at: new Date()
+  })
+
+  return {
+    message: USER_MESSAGE.UPDATE_USER_PROFILE_SUCCESSFULLY,
+    data: { ...data }
+  }
 }
 
 /**
@@ -332,53 +460,5 @@ export const logoutServices = async (data: refreshTokenBodyType) => {
   await RefreshToken.findByIdAndDelete(refreshToken._id)
   return {
     message: USER_MESSAGE.LOGOUT_SUCCESSFULLY
-  }
-}
-
-/**
- * Description: User update thông tin cá nhân
- * Req.body:  avatar, cover
- * Req.user: _id
- * Response: message
- * @param data
- * @param decoded
- * @returns
- */
-
-export const updateUserProfileServices = async (data: updateUserProfileBodyType, decoded: JwtPayload) => {
-  const { _id } = decoded
-  const { avatar, cover } = data
-  const user = await Users.findById(_id)
-  if (!user) {
-    throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.USER_NOT_FOUND,
-      statusCode: httpStatus.NOT_FOUND
-    })
-  }
-  /**
-   * Nếu avatar hoặc cover có giá trị thì kiểm tra xem user.avatar hoặc user.cover đã có 3 ảnh chưa
-   * Nếu đã có 3 ảnh thì xóa ảnh đầu tiên và thêm ảnh mới vào cuối
-   * Nếu chưa có 3 ảnh thì thêm ảnh mới vào cuối
-   */
-
-  if (avatar) {
-    if (user.avatar.length >= 3) {
-      user.avatar.shift()
-      user.avatar.push(avatar)
-    } else {
-      user.avatar.push(avatar)
-    }
-  }
-  if (cover) {
-    if (user.cover.length >= 3) {
-      user.cover.shift()
-      user.cover.push(cover)
-    }
-    user.cover.push(cover)
-  }
-
-  await user.save()
-  return {
-    message: USER_MESSAGE.UPDATE_PROFILE_SUCCESSFULLY
   }
 }

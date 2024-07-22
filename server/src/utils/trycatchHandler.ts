@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express'
 import { validate } from './validate'
 
-const tryCatchHandler = (fn: RequestHandler) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+const tryCatchHandler = <P>(fn: RequestHandler<P>) => {
+  return async (req: Request<P>, res: Response, next: NextFunction) => {
     try {
       await fn(req, res, next)
     } catch (err) {

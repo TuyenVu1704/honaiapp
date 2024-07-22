@@ -1,9 +1,11 @@
 import { Request, Response } from 'express'
 import { JwtPayload } from 'jsonwebtoken'
-import { getAllUserQueryType } from '~/middlewares/users.middlewares'
+import { getAllUserQueryType, getUserParamsType } from '~/middlewares/users.middlewares'
 import {
+  adminUpdateUserProfileServices,
   getAllUsersServices,
   getMeServices,
+  getProfileUserService,
   loginServices,
   logoutServices,
   registerUserServices,
@@ -31,7 +33,40 @@ export const verifyEmailController = tryCatchHandler(async (req: Request, res: R
  */
 
 export const getMeController = tryCatchHandler(async (req: Request, res: Response) => {
-  const result = await getMeServices(req.user as JwtPayload)
+  const { _id } = req.user as JwtPayload
+  const result = await getMeServices(_id)
+  return res.json(result)
+})
+
+/**
+ * Get Profile User
+ */
+
+export const getProfileUserController = tryCatchHandler(async (req: Request<{ id: string }>, res: Response) => {
+  const { id } = req.params as getUserParamsType
+  const result = await getProfileUserService(id)
+  return res.json(result)
+})
+
+/**
+ * User update thông tin cá nhân
+ *
+ */
+export const updateUserProfileController = tryCatchHandler(async (req: Request, res: Response) => {
+  const { _id } = req.user as JwtPayload
+  const result = await updateUserProfileServices(req.body, _id)
+
+  return res.json(result)
+})
+
+/**
+ * Admin update thông tin user
+ *
+ */
+
+export const adminUpdateUserProfileController = tryCatchHandler(async (req: Request, res: Response) => {
+  const { id } = req.params as getUserParamsType
+  const result = await adminUpdateUserProfileServices(req.body, id)
   return res.json(result)
 })
 
@@ -67,27 +102,3 @@ export const logoutUserController = tryCatchHandler(async (req: Request, res: Re
   const result = await logoutServices(req.body)
   return res.json(result)
 })
-
-/**
- * User update thông tin cá nhân
- *
- */
-export const updateUserProfileController = tryCatchHandler(async (req: Request, res: Response) => {
-  const result = await updateUserProfileServices(req.body, req.user as JwtPayload)
-
-  return res.json(result)
-})
-
-// Admin yêu cầu đăng xuất tài khoản
-// Admin lấy lại mật khẩu Admin
-// Admin thay đổi mật khẩu người dùng
-// Admin xem thông tin người dùng
-// Admin xem danh sách người dùng
-// Admin lock tài khoản người dùng
-// Admin unlock tài khoản người dùng
-// Admin xóa tài khoản người dùng
-// Admin cập nhật thông tin người dùng
-
-// User thay đổi mật khẩu
-// User xem thông tin cá nhân
-// User cập nhật thông tin cá nhân

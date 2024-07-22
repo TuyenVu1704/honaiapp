@@ -1,8 +1,10 @@
 import { log } from 'console'
 import { Router } from 'express'
 import {
+  adminUpdateUserProfileController,
   getAllUsersController,
   getMeController,
+  getProfileUserController,
   loginUserController,
   logoutUserController,
   registerUserController,
@@ -12,18 +14,21 @@ import {
 } from '~/controller/users.controller'
 import { accessTokenMiddleware, checkIsAdmin, checkIsEmailVerified } from '~/middlewares/accessToken.middlewares'
 import { emailVerifyTokenMiddleware } from '~/middlewares/emailVerifyToken.middlewares'
+import { filterReqMiddleware } from '~/middlewares/filterReq.middlewares'
 import { refreshTokenMiddleware } from '~/middlewares/refreshToken.middlewares'
 
 import {
+  adminUpdateUserProfileBody,
+  adminUpdateUserProfileBodyType,
   loginUserBody,
   registerUserBody,
   resendEmailVerifyTokenBody,
-  updateUserProfileBody
+  updateUserProfileBody,
+  updateUserProfileBodyType
 } from '~/middlewares/users.middlewares'
 import { validate } from '~/utils/validate'
 
 const router = Router()
-
 /**
  * Description: Đăng ký tài khoản mới
  * Method: POST
@@ -44,6 +49,74 @@ router.post('/register', accessTokenMiddleware, checkIsAdmin, validate(registerU
 router.post('/verify-email', emailVerifyTokenMiddleware, verifyEmailController)
 
 /**
+ * Description: Get Me
+ * Method: GET
+ * Request: /users/me
+ * Request Header: Authorization
+ *
+ */
+
+router.get('/me', accessTokenMiddleware, checkIsEmailVerified, getMeController)
+
+/**
+ * Description: Get Profile User
+ * Method: GET
+ * Request: /users/profile/:id
+ * Request Header: Authorization
+ * Roles: Admin
+ *
+ */
+
+router.get('/profile/:id', accessTokenMiddleware, checkIsAdmin, getProfileUserController)
+
+/**
+ * Description: User cập nhật thông tin cá nhân
+ * Method: PATCH
+ * Request: /users/update-profile
+ * Request Header: Authorization
+ * body: {  avatar, cover }
+ *
+ */
+router.patch(
+  '/update-profile',
+  accessTokenMiddleware,
+  checkIsEmailVerified,
+  validate(updateUserProfileBody),
+  filterReqMiddleware<updateUserProfileBodyType>(['avatar', 'cover']),
+  updateUserProfileController
+)
+
+/**
+ * Description: Admin câp nhật thông tin user
+ * Method: PATCH
+ * Request: /users/update-profile/:id
+ * Request Header: Authorization
+ * Roles: Admin
+ */
+
+router.patch(
+  '/update-profile/:id',
+  accessTokenMiddleware,
+  checkIsAdmin,
+  validate(adminUpdateUserProfileBody),
+  filterReqMiddleware<adminUpdateUserProfileBodyType>([
+    'first_name',
+    'last_name',
+    'email',
+    'phone',
+    'role',
+    'permission',
+    'department',
+    'position',
+    'device',
+    'email_verified',
+    'avatar',
+    'cover'
+  ]),
+  adminUpdateUserProfileController
+)
+
+/**
  * Description: Resend Email Verify Token Sau khi user không nhận được email verify token
  * Method: POST
  * Request: /users/resend-email-verify-token
@@ -56,16 +129,6 @@ router.post(
   validate(resendEmailVerifyTokenBody),
   resendEmailVerifyTokenController
 )
-
-/**
- * Description: Get Me
- * Method: GET
- * Request: /users/me
- * Request Header: Authorization
- *
- */
-
-router.get('/me', accessTokenMiddleware, checkIsEmailVerified, getMeController)
 
 /**
  * Description: Get All Users
@@ -85,7 +148,6 @@ router.get('/get-all-users', accessTokenMiddleware, checkIsAdmin, getAllUsersCon
  *
  */
 router.post('/login', validate(loginUserBody), loginUserController)
-export default router
 
 /**
  * Description: User Đăng xuất tài khoản
@@ -103,12 +165,4 @@ router.post(
   logoutUserController
 )
 
-/**
- * Description: User cập nhật thông tin cá nhân
- * Method: PATCH
- * Request: /users/update-profile
- * Request Header: Authorization
- * body: {  avatar, cover }
- *
- */
-router.patch('/update-profile', accessTokenMiddleware, updateUserProfileController)
+export default router

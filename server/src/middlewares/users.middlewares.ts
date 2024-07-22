@@ -1,6 +1,8 @@
 import z from 'zod'
 import { passwordRegex, phoneRegex } from '~/utils/regex'
 import _, { last } from 'lodash'
+import { permission } from 'process'
+import { userInfo } from 'os'
 
 // Register user body
 export const registerUserBody = z
@@ -42,6 +44,78 @@ export const registerUserRes = z.object({
 
 export type registerUserResType = z.infer<typeof registerUserRes>
 
+// Get me response
+export const getMeRes = z.object({
+  message: z.string(),
+  data: z.object({
+    user: z.object({
+      _id: z.string(),
+      first_name: z.string(),
+      last_name: z.string(),
+      email: z.string(),
+      phone: z.string(),
+      role: z.string(),
+      permission: z.string(),
+      department: z.string(),
+      position: z.string(),
+      device: z.string(),
+      avartar: z.string(),
+      cover: z.string(),
+      createdAt: z.string(),
+      updatedAt: z.string()
+    })
+  })
+})
+
+export type getMeResType = z.infer<typeof getMeRes>
+
+// Get Profile User
+export const getUserParams = z.object({
+  id: z.string()
+})
+
+export type getUserParamsType = z.infer<typeof getUserParams>
+
+export const getProfileUserRes = z.object({
+  message: z.string(),
+  data: z.object({
+    user: z.object({})
+  })
+})
+
+//Update user profile body
+export const updateUserProfileBody = z.object({
+  avatar: z.string().optional(),
+  cover: z.string().optional()
+})
+
+export type updateUserProfileBodyType = z.infer<typeof updateUserProfileBody>
+
+//Admin update user profile body
+export const adminUpdateUserProfileBody = z.object({
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  role: z.number().optional(),
+  permission: z.string().optional(),
+  department: z.string().optional(),
+  position: z.string().optional(),
+  device: z.string().optional(),
+  email_verified: z.boolean().optional(),
+  avatar: z.string().optional(),
+  cover: z.string().optional()
+})
+
+export type adminUpdateUserProfileBodyType = z.infer<typeof adminUpdateUserProfileBody>
+
+export const adminUpdateUserProfileRes = z.object({
+  message: z.string(),
+  data: z.object({
+    user: z.object({})
+  })
+})
+
 // Login user body
 export const loginUserBody = z
   .object({
@@ -70,25 +144,6 @@ export const resendEmailVerifyTokenBody = z
 
 export type resendEmailVerifyTokenBodyType = z.infer<typeof resendEmailVerifyTokenBody>
 
-// Get me response
-export const getMeRes = z.object({
-  message: z.string(),
-  data: z.object({
-    user: z.object({
-      first_name: z.string(),
-      last_name: z.string(),
-      email: z.string(),
-      phone: z.string(),
-      department: z.string(),
-      position: z.string(),
-      avartar: z.string(),
-      cover: z.string()
-    })
-  })
-})
-
-export type getMeResType = z.infer<typeof getMeRes>
-
 export const getAllUserQuery = z.object({
   page: z.string().optional(),
   limit: z.string().optional(),
@@ -104,11 +159,3 @@ export const getAllUserQuery = z.object({
 })
 
 export type getAllUserQueryType = z.infer<typeof getAllUserQuery>
-
-//Update user profile body
-export const updateUserProfileBody = z.object({
-  avatar: z.string().optional(),
-  cover: z.string().optional()
-})
-
-export type updateUserProfileBodyType = z.infer<typeof updateUserProfileBody>

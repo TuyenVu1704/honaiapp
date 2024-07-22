@@ -25,8 +25,6 @@ export interface IUser extends Document {
   confirmToken: string
   loginAttempts: number
   locked: boolean
-  created_at: Date
-  updated_at: Date
   isLocked: () => boolean
   isActive: () => boolean
 }

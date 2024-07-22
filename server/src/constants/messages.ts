@@ -9,10 +9,14 @@ export const USER_MESSAGE = {
 
   //Email
   EMAIL_OR_PHONE_EXISTED: 'Email or phone number already exists',
+  EMAIL_EXISTED: 'Email already exists',
   EMAIL_OR_PASSWORD_EXISTED: 'Email or password already exists',
   EMAIL_OR_PASSWORD_INCORRECT: 'Email or password is incorrect',
   EMAIL_NOT_FOUND: 'Email not found',
   RESEND_EMAIL_VERIFY_SUCCESSFULLY: 'Resend email verify token successfully',
+
+  //Phone
+  PHONE_EXISTED: 'Phone number already exists',
 
   // Account
   ACCOUNT_LOCKED: 'Account is locked',
@@ -41,5 +45,9 @@ export const USER_MESSAGE = {
   GET_ME_SUCCESSFULLY: 'Get me successfully',
   GET_ALL_USERS_SUCCESSFULLY: 'Get all users successfully',
   GET_ALL_USERS_FAILED: 'Get all users failed',
-  UPDATE_PROFILE_SUCCESSFULLY: 'Update profile successfully'
+  UPDATE_PROFILE_SUCCESSFULLY: 'Update profile successfully',
+  GET_PROFILE_SUCCESSFULLY: 'Get profile successfully',
+
+  //Update
+  UPDATE_USER_PROFILE_SUCCESSFULLY: 'Update user profile successfully'
 } as const

@@ -1,6 +1,6 @@
 import mongoose from 'mongoose'
 import { Roles } from '~/constants/enum'
-import { IUser } from '~/constants/type'
+import { IUser } from '~/constants/type.schema'
 
 const Schema = mongoose.Schema
 const UserSchema = new Schema<IUser>(
@@ -101,9 +101,7 @@ const UserSchema = new Schema<IUser>(
     confirmToken: {
       type: String,
       default: null
-    },
-    created_at: Date,
-    updated_at: Date
+    }
   },
   { timestamps: true }
 )
