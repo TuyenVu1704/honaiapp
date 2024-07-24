@@ -7,7 +7,7 @@ import {
   loginUserBodyType,
   registerUserBodyType,
   resendEmailVerifyTokenBodyType,
-  updateUserProfileBodyType
+  updateAvatarBodyType
 } from '~/middlewares/users.middlewares'
 import RefreshToken from '~/models/RefreshToken.schema'
 import Users from '~/models/Users.schema'
@@ -19,8 +19,8 @@ import { randomPassword } from '~/utils/random'
 import { emailVerifyTokenBodyType } from '~/middlewares/emailVerifyToken.middlewares'
 import { ObjectId } from 'mongodb'
 import { JwtPayload } from 'jsonwebtoken'
-import e from 'express'
-import { IUser } from '~/constants/type.schema'
+import { NextFunction } from 'express'
+import { File } from 'formidable'
 
 /**
  * Description: Đăng ký tài khoản mới
@@ -28,7 +28,7 @@ import { IUser } from '~/constants/type.schema'
  * Response: message, data
  * Data: user: { _id, first_name, last_name, email }
  */
-export const registerUserServices = async (data: registerUserBodyType) => {
+export const registerUserServices = async (data: registerUserBodyType, next: NextFunction) => {
   //Viết hoa chữ cái đầu của first_name và last_name
   const [first_name, last_name] = await Promise.all([
     capitalizeAfterSpace(data.first_name),
@@ -39,10 +39,12 @@ export const registerUserServices = async (data: registerUserBodyType) => {
     $or: [{ email: data.email }, { phone: data.phone }]
   })
   if (userExist) {
-    throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.EMAIL_OR_PHONE_EXISTED,
-      statusCode: httpStatus.BAD_REQUEST
-    })
+    next(
+      new ErrorWithStatusCode({
+        message: USER_MESSAGE.EMAIL_OR_PHONE_EXISTED,
+        statusCode: httpStatus.BAD_REQUEST
+      })
+    )
   }
   // Tao _id cho user
   const _id = new ObjectId()
@@ -213,8 +215,7 @@ export const getAllUsersServices = async (query: any) => {
  * @returns
  */
 
-export const updateUserProfileServices = async (data: updateUserProfileBodyType, _id: string) => {
-  const { avatar, cover } = data
+export const updateAvatarService = async (urlAvatar: string, _id: string) => {
   const user = await Users.findById(_id)
   if (!user) {
     throw new ErrorWithStatusCode({
@@ -222,31 +223,12 @@ export const updateUserProfileServices = async (data: updateUserProfileBodyType,
       statusCode: httpStatus.NOT_FOUND
     })
   }
-  /**
-   * Nếu avatar hoặc cover có giá trị thì kiểm tra xem user.avatar hoặc user.cover đã có 3 ảnh chưa
-   * Nếu đã có 3 ảnh thì xóa ảnh đầu tiên và thêm ảnh mới vào cuối
-   * Nếu chưa có 3 ảnh thì thêm ảnh mới vào cuối
-   */
-
-  if (avatar) {
-    if (user.avatar.length >= 3) {
-      user.avatar.shift()
-      user.avatar.push(avatar)
-    } else {
-      user.avatar.push(avatar)
-    }
-  }
-  if (cover) {
-    if (user.cover.length >= 3) {
-      user.cover.shift()
-      user.cover.push(cover)
-    }
-    user.cover.push(cover)
-  }
-
-  await user.save()
+  // Update avatar trong db
+  await Users.findByIdAndUpdate(_id, {
+    avatar: urlAvatar
+  })
   return {
-    message: USER_MESSAGE.UPDATE_PROFILE_SUCCESSFULLY
+    message: USER_MESSAGE.UPDATE_AVATAR_SUCCESSFULLY
   }
 }
 

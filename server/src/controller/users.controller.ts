@@ -1,5 +1,7 @@
-import { Request, Response } from 'express'
+import { NextFunction, Request, Response } from 'express'
 import { JwtPayload } from 'jsonwebtoken'
+import sharp from 'sharp'
+import { UPLOAD_AVATAR } from '~/constants/dir'
 import { getAllUserQueryType, getUserParamsType } from '~/middlewares/users.middlewares'
 import {
   adminUpdateUserProfileServices,
@@ -10,14 +12,19 @@ import {
   logoutServices,
   registerUserServices,
   resendEmailVerifyServices,
-  updateUserProfileServices,
+  updateAvatarService,
   verifyEmailServices
 } from '~/services/users.services'
+import { handleUploadSingleImage } from '~/utils/file'
 import tryCatchHandler from '~/utils/trycatchHandler'
+import fs from 'fs'
+import { isProduction } from '~/config/config'
+import { config } from 'dotenv'
 
+config()
 // Đăng ký tài khoản mới
-export const registerUserController = tryCatchHandler(async (req: Request, res: Response) => {
-  const result = await registerUserServices(req.body)
+export const registerUserController = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const result = await registerUserServices(req.body, next)
   return res.json(result)
 })
 
@@ -52,10 +59,27 @@ export const getProfileUserController = tryCatchHandler(async (req: Request<{ id
  * User update thông tin cá nhân
  *
  */
-export const updateUserProfileController = tryCatchHandler(async (req: Request, res: Response) => {
+export const updateAvatarController = tryCatchHandler(async (req: Request, res: Response) => {
   const { _id } = req.user as JwtPayload
-  const result = await updateUserProfileServices(req.body, _id)
 
+  // Get file from request
+  const file = await handleUploadSingleImage(req)
+  const newName = file.newFilename.split('.')[0]
+  // Resize file
+  await sharp(file.filepath)
+    .jpeg()
+    .toFile(UPLOAD_AVATAR + `/${newName}.jpeg`)
+
+  // Get url avatar
+  const urlAvatar = isProduction
+    ? `${process.env.HOST}/uploads/avatar/${newName}.jpeg`
+    : `${process.env.BASE_URL}/uploads/avatar/${newName}.jpeg`
+
+  // delete file in temp folder
+  fs.unlinkSync(file.filepath)
+
+  // update avatar in database
+  const result = await updateAvatarService(urlAvatar, _id)
   return res.json(result)
 })
 

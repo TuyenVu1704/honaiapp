@@ -49,5 +49,6 @@ export const USER_MESSAGE = {
   GET_PROFILE_SUCCESSFULLY: 'Get profile successfully',
 
   //Update
-  UPDATE_USER_PROFILE_SUCCESSFULLY: 'Update user profile successfully'
+  UPDATE_USER_PROFILE_SUCCESSFULLY: 'Update user profile successfully',
+  UPDATE_AVATAR_SUCCESSFULLY: 'Update avatar successfully'
 } as const

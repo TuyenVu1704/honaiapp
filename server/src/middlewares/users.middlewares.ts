@@ -83,13 +83,12 @@ export const getProfileUserRes = z.object({
   })
 })
 
-//Update user profile body
-export const updateUserProfileBody = z.object({
-  avatar: z.string().optional(),
-  cover: z.string().optional()
+//Update user Avatar body
+export const updateAvatarBody = z.object({
+  avatar: z.instanceof(File).optional()
 })
 
-export type updateUserProfileBodyType = z.infer<typeof updateUserProfileBody>
+export type updateAvatarBodyType = z.infer<typeof updateAvatarBody>
 
 //Admin update user profile body
 export const adminUpdateUserProfileBody = z.object({
@@ -144,6 +143,9 @@ export const resendEmailVerifyTokenBody = z
 
 export type resendEmailVerifyTokenBodyType = z.infer<typeof resendEmailVerifyTokenBody>
 
+/**
+ * Get All Users
+ */
 export const getAllUserQuery = z.object({
   page: z.string().optional(),
   limit: z.string().optional(),

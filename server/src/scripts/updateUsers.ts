@@ -7,7 +7,9 @@ const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}
 const updateUsers = async () => {
   await mongoose.connect(uri)
   try {
-    await Users.updateMany({}, { $set: { confirmToken: null } })
+    // update thêm key confirmToken vào tất cả các user
+    // await Users.updateMany({}, { $set: { confirmToken: null } })
+    await Users.updateMany({}, { $unset: { cover: '' } })
     console.log('Update User successfully')
   } catch (error) {
     console.log('Update User failed')

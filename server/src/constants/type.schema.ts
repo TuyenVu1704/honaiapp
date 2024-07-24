@@ -15,13 +15,10 @@ export interface IUser extends Document {
   status: string
   email_verify_token: string
   email_verified: boolean
-  // actived_at: Date
-  // deactivated_at: Date
   reset_password_token: string
   password_reseted_at: Date[]
-  avatar: string[]
-  cover: string[]
-  // sessionId: string
+  avatar: string
+
   confirmToken: string
   loginAttempts: number
   locked: boolean

@@ -1,4 +1,3 @@
-import { log } from 'console'
 import { Router } from 'express'
 import {
   adminUpdateUserProfileController,
@@ -9,13 +8,13 @@ import {
   logoutUserController,
   registerUserController,
   resendEmailVerifyTokenController,
-  updateUserProfileController,
+  updateAvatarController,
   verifyEmailController
 } from '~/controller/users.controller'
 import { accessTokenMiddleware, checkIsAdmin, checkIsEmailVerified } from '~/middlewares/accessToken.middlewares'
 import { emailVerifyTokenMiddleware } from '~/middlewares/emailVerifyToken.middlewares'
 import { filterReqMiddleware } from '~/middlewares/filterReq.middlewares'
-import { refreshTokenMiddleware } from '~/middlewares/refreshToken.middlewares'
+import { refreshTokenBody, refreshTokenMiddleware } from '~/middlewares/refreshToken.middlewares'
 
 import {
   adminUpdateUserProfileBody,
@@ -23,8 +22,8 @@ import {
   loginUserBody,
   registerUserBody,
   resendEmailVerifyTokenBody,
-  updateUserProfileBody,
-  updateUserProfileBodyType
+  updateAvatarBody,
+  updateAvatarBodyType
 } from '~/middlewares/users.middlewares'
 import { validate } from '~/utils/validate'
 
@@ -70,20 +69,20 @@ router.get('/me', accessTokenMiddleware, checkIsEmailVerified, getMeController)
 router.get('/profile/:id', accessTokenMiddleware, checkIsAdmin, getProfileUserController)
 
 /**
- * Description: User cập nhật thông tin cá nhân
- * Method: PATCH
- * Request: /users/update-profile
+ * Description: User cập nhật Avatar
+ * Method: POST
+ * Request: /users/update-avatar
  * Request Header: Authorization
- * body: {  avatar, cover }
+ * body: {  avatar }
  *
  */
-router.patch(
-  '/update-profile',
+router.post(
+  '/update-avatar',
   accessTokenMiddleware,
   checkIsEmailVerified,
-  validate(updateUserProfileBody),
-  filterReqMiddleware<updateUserProfileBodyType>(['avatar', 'cover']),
-  updateUserProfileController
+  validate(updateAvatarBody),
+  filterReqMiddleware<updateAvatarBodyType>(['avatar']),
+  updateAvatarController
 )
 
 /**
@@ -157,12 +156,6 @@ router.post('/login', validate(loginUserBody), loginUserController)
  * body: refreshToken
  */
 
-router.post(
-  '/logout',
-  accessTokenMiddleware,
-  refreshTokenMiddleware,
-  validate(updateUserProfileBody),
-  logoutUserController
-)
+router.post('/logout', accessTokenMiddleware, refreshTokenMiddleware, validate(refreshTokenBody), logoutUserController)
 
 export default router

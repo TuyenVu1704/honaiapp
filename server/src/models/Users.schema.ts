@@ -63,12 +63,7 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: false
     },
-    // actived_at: {
-    //   type: Date
-    // },
-    // deactivated_at: {
-    //   type: Date
-    // },
+
     reset_password_token: {
       type: String,
       default: ''
@@ -79,16 +74,11 @@ const UserSchema = new Schema<IUser>(
       }
     ],
 
-    avatar: [
-      {
-        type: String
-      }
-    ],
-    cover: [
-      {
-        type: String
-      }
-    ],
+    avatar: {
+      type: String,
+      default: ''
+    },
+
     loginAttempts: { type: Number, required: true, default: 0 },
     locked: {
       type: Boolean,
