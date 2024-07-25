@@ -1,42 +1,37 @@
 import { Request } from 'express'
-import formidable, { File } from 'formidable'
 import fs from 'fs'
-import { UPLOAD_AVATAR, UPLOAD_TEMP } from '~/constants/dir'
+import { UPLOAD_FOLDER } from '~/constants/dir'
+import multer from 'multer'
 
 // Hàm khởi tạo folder nếu chưa tồn tại
 export const initFolder = () => {
-  if (!fs.existsSync(UPLOAD_TEMP)) {
-    fs.mkdirSync(UPLOAD_TEMP, { recursive: true }) // recursive: true để tạo folder cha nếu chưa tồn tại
-  }
-  if (!fs.existsSync(UPLOAD_AVATAR)) {
-    fs.mkdirSync(UPLOAD_AVATAR, { recursive: true }) // recursive: true để tạo folder cha nếu chưa tồn tại
+  if (!fs.existsSync(UPLOAD_FOLDER)) {
+    fs.mkdirSync(UPLOAD_FOLDER)
   }
 }
 
-// Hàm xử lý upload ảnh đơn
-export const handleUploadSingleImage = async (req: Request) => {
-  const form = formidable({
-    uploadDir: UPLOAD_TEMP, // đường dẫn lưu file vào thư mục uploads/temp
-    maxFiles: 1, // số file tối đa được upload
-    keepExtensions: true, // giữ lại đuôi file sau khi upload
-    filter: function ({ name, originalFilename, mimetype }) {
-      const valid = name === 'image' && Boolean(mimetype?.includes('image/'))
-      if (!valid) {
-        form.emit('error' as any, new Error('File is not valid') as any)
+// config multer and filter file
+export const upload = multer({
+  storage: multer.memoryStorage(),
+
+  fileFilter: async (req: Request, file: Express.Multer.File, cb: any) => {
+    // Lấy giá trị của fields name trong file
+    const fieldName = file.fieldname
+    // Kiểm tra nếu fields name là avatar thì chỉ cho upload file ảnh
+    if (fieldName === 'avatar') {
+      const createFolder = UPLOAD_FOLDER + '/' + fieldName
+      if (!fs.existsSync(createFolder)) {
+        fs.mkdirSync(createFolder)
       }
-      return true
+      if (!file.mimetype.startsWith('image')) {
+        return cb(new Error('Please upload an image file'), false)
+      }
     }
-  })
 
-  return new Promise<File>((resolve, reject) => {
-    form.parse(req, (err, fields, files) => {
-      if (err) {
-        return reject(err)
-      }
-      if (files.image === undefined) {
-        return reject(new Error('File is empty'))
-      }
-      resolve((files.image as File[])[0])
-    })
-  })
-}
+    // Nếu không phải fields name là avatar thì cho upload tất cả các loại file
+    cb(null, true)
+  },
+  limits: {
+    fileSize: 1024 * 1024 * 10 // 10MB
+  }
+})

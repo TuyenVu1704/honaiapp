@@ -101,9 +101,7 @@ export const adminUpdateUserProfileBody = z.object({
   department: z.string().optional(),
   position: z.string().optional(),
   device: z.string().optional(),
-  email_verified: z.boolean().optional(),
-  avatar: z.string().optional(),
-  cover: z.string().optional()
+  email_verified: z.boolean().optional()
 })
 
 export type adminUpdateUserProfileBodyType = z.infer<typeof adminUpdateUserProfileBody>

@@ -20,7 +20,6 @@ import { emailVerifyTokenBodyType } from '~/middlewares/emailVerifyToken.middlew
 import { ObjectId } from 'mongodb'
 import { JwtPayload } from 'jsonwebtoken'
 import { NextFunction } from 'express'
-import { File } from 'formidable'
 
 /**
  * Description: Đăng ký tài khoản mới
@@ -28,7 +27,7 @@ import { File } from 'formidable'
  * Response: message, data
  * Data: user: { _id, first_name, last_name, email }
  */
-export const registerUserServices = async (data: registerUserBodyType, next: NextFunction) => {
+export const registerUserServices = async (data: registerUserBodyType) => {
   //Viết hoa chữ cái đầu của first_name và last_name
   const [first_name, last_name] = await Promise.all([
     capitalizeAfterSpace(data.first_name),
@@ -39,12 +38,10 @@ export const registerUserServices = async (data: registerUserBodyType, next: Nex
     $or: [{ email: data.email }, { phone: data.phone }]
   })
   if (userExist) {
-    next(
-      new ErrorWithStatusCode({
-        message: USER_MESSAGE.EMAIL_OR_PHONE_EXISTED,
-        statusCode: httpStatus.BAD_REQUEST
-      })
-    )
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.EMAIL_OR_PHONE_EXISTED,
+      statusCode: httpStatus.BAD_REQUEST
+    })
   }
   // Tao _id cho user
   const _id = new ObjectId()

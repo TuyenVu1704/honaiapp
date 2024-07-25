@@ -8,7 +8,6 @@ import {
   logoutUserController,
   registerUserController,
   resendEmailVerifyTokenController,
-  updateAvatarController,
   verifyEmailController
 } from '~/controller/users.controller'
 import { accessTokenMiddleware, checkIsAdmin, checkIsEmailVerified } from '~/middlewares/accessToken.middlewares'
@@ -68,22 +67,22 @@ router.get('/me', accessTokenMiddleware, checkIsEmailVerified, getMeController)
 
 router.get('/profile/:id', accessTokenMiddleware, checkIsAdmin, getProfileUserController)
 
-/**
- * Description: User cập nhật Avatar
- * Method: POST
- * Request: /users/update-avatar
- * Request Header: Authorization
- * body: {  avatar }
- *
- */
-router.post(
-  '/update-avatar',
-  accessTokenMiddleware,
-  checkIsEmailVerified,
-  validate(updateAvatarBody),
-  filterReqMiddleware<updateAvatarBodyType>(['avatar']),
-  updateAvatarController
-)
+// /**
+//  * Description: User cập nhật Avatar
+//  * Method: POST
+//  * Request: /users/update-avatar
+//  * Request Header: Authorization
+//  * body: {  avatar }
+//  *
+//  */
+// router.post(
+//   '/update-avatar',
+//   accessTokenMiddleware,
+//   checkIsEmailVerified,
+//   validate(updateAvatarBody),
+//   filterReqMiddleware<updateAvatarBodyType>(['avatar']),
+//   updateAvatarController
+// )
 
 /**
  * Description: Admin câp nhật thông tin user
@@ -108,9 +107,7 @@ router.patch(
     'department',
     'position',
     'device',
-    'email_verified',
-    'avatar',
-    'cover'
+    'email_verified'
   ]),
   adminUpdateUserProfileController
 )

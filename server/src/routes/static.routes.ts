@@ -3,6 +3,6 @@ import { serveImageController } from '~/controller/static.controller'
 
 const router = Router()
 
-router.get('/image/:name', serveImageController)
+router.get('/avatar/:name', serveImageController)
 
 export default router

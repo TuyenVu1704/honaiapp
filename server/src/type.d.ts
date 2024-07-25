@@ -8,5 +8,6 @@ declare module 'express' {
     decoded_email_verify_token?: JwtPayload
     isAdmin?: boolean
     isEmailVerified?: boolean
+    files?: any
   }
 }
