@@ -17,6 +17,7 @@ export const upload = multer({
   fileFilter: async (req: Request, file: Express.Multer.File, cb: any) => {
     // Lấy giá trị của fields name trong file
     const fieldName = file.fieldname
+    console.log(file)
     // Kiểm tra nếu fields name là avatar thì chỉ cho upload file ảnh
     if (fieldName === 'avatar') {
       const createFolder = UPLOAD_FOLDER + '/' + fieldName

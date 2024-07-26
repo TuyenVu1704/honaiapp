@@ -67,23 +67,6 @@ router.get('/me', accessTokenMiddleware, checkIsEmailVerified, getMeController)
 
 router.get('/profile/:id', accessTokenMiddleware, checkIsAdmin, getProfileUserController)
 
-// /**
-//  * Description: User cập nhật Avatar
-//  * Method: POST
-//  * Request: /users/update-avatar
-//  * Request Header: Authorization
-//  * body: {  avatar }
-//  *
-//  */
-// router.post(
-//   '/update-avatar',
-//   accessTokenMiddleware,
-//   checkIsEmailVerified,
-//   validate(updateAvatarBody),
-//   filterReqMiddleware<updateAvatarBodyType>(['avatar']),
-//   updateAvatarController
-// )
-
 /**
  * Description: Admin câp nhật thông tin user
  * Method: PATCH
@@ -110,6 +93,24 @@ router.patch(
     'email_verified'
   ]),
   adminUpdateUserProfileController
+)
+
+/**
+ * Description: User Change Password
+ * Method: PATCH
+ * Request: /users/change-password
+ * Request Header: Authorization
+ * Check email verified
+ * Request body: { old_password: string, new_password: string }
+ *
+ */
+
+router.patch(
+  '/change-password',
+  accessTokenMiddleware,
+  checkIsEmailVerified,
+  validate(changePasswordBody),
+  changePasswordController
 )
 
 /**
