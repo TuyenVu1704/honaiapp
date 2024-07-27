@@ -1,8 +1,7 @@
 import z from 'zod'
 import { passwordRegex, phoneRegex } from '~/utils/regex'
-import _, { last } from 'lodash'
-import { permission } from 'process'
-import { userInfo } from 'os'
+import _ from 'lodash'
+import { File } from 'buffer'
 
 // Register user body
 export const registerUserBody = z
@@ -61,6 +60,29 @@ export const loginUserRes = z.object({
   }),
   message: z.string()
 })
+
+export const loginUserResRedis = z.object({
+  first_name: z.string(),
+  last_name: z.string(),
+  email: z.string(),
+  phone: z.number(),
+  password: z.string(),
+  role: z.string(),
+  permissions: z.array(z.string()),
+  department: z.array(z.string()),
+  position: z.array(z.string()),
+  status: z.string(),
+  email_verified: z.boolean(),
+  devices: z.array(
+    z.object({
+      device_id: z.string(),
+      last_login: z.string()
+    })
+  ),
+  loginAttempts: z.number(),
+  locked: z.boolean()
+})
+export type loginUserResRedisType = z.infer<typeof loginUserResRedis>
 
 export type loginUserResType = z.infer<typeof loginUserRes>
 

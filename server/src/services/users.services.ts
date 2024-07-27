@@ -5,6 +5,7 @@ import { refreshTokenBodyType } from '~/middlewares/refreshToken.middlewares'
 import {
   adminUpdateUserProfileBodyType,
   loginUserBodyType,
+  loginUserResRedisType,
   registerUserBodyType,
   resendEmailVerifyTokenBodyType,
   updateAvatarBodyType
@@ -14,12 +15,13 @@ import Users from '~/models/Users.schema'
 import { capitalizeAfterSpace } from '~/utils/captalizeAfterSpace'
 import { comparePassword, hashPassword } from '~/utils/hashPassword'
 import { signToken } from '~/utils/jwt'
-import _ from 'lodash'
+import _, { get } from 'lodash'
 import { randomPassword } from '~/utils/random'
 import { emailVerifyTokenBodyType } from '~/middlewares/emailVerifyToken.middlewares'
 import { ObjectId } from 'mongodb'
 import jwt, { JwtPayload } from 'jsonwebtoken'
 import { sendMail } from '~/config/mailConfig'
+import { cacheUser, getCachedUser, getLoginAttempts, updateLoginAttempts } from '~/utils/redisUtils'
 
 /**
  * Description: Đăng ký tài khoản mới
@@ -92,55 +94,59 @@ export const registerUserServices = async (data: registerUserBodyType) => {
 export const loginServices = async (data: loginUserBodyType) => {
   const { email, password, device_id } = data
 
-  const [user, existingDevice] = await Promise.all([
-    Users.findOne({ email }).select('email first_name password loginAttempts devices'),
-    Users.findOne({ email, 'devices.device_id': device_id }).select('_id').lean()
-  ])
-
-  // Kiểm tra xem tài khoản có đang bị khóa không
+  // Kiểm tra cache trước khi kiểm tra trong db
+  let user = await getCachedUser(email)
+  if (!user) {
+    user = await Users.findOne({ email })?.select('email first_name password loginAttempts devices')
+    if (user) {
+      await cacheUser(email, user)
+    }
+  }
 
   if (!user) {
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.EMAIL_OR_PASSWORD_EXISTED,
       statusCode: httpStatus.BAD_REQUEST
     })
-  } else if (user.isLocked()) {
+  }
+
+  // Kiểm tra số lần đăng nhập thất bại
+  const loginAttempts = await getLoginAttempts(email)
+  if (loginAttempts >= 5) {
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.ACCOUNT_LOCKED,
       statusCode: httpStatus.LOCKED
     })
   }
+
   // Kiểm tra password
   const isMatch = await comparePassword(password, user.password)
   // Nếu password không đúng thì tăng loginAttempts lên 1 và kiểm tra xem có đạt mức tối đa chưa
   if (!isMatch) {
-    user.loginAttempts += 1
-    const MAX_LOGIN_ATTEMPTS = 5
-    if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
-      await Users.findByIdAndUpdate(user._id, {
+    const newAttempts = loginAttempts + 1
+    await updateLoginAttempts(email, newAttempts)
+    if (newAttempts >= 5) {
+      await Users.findOneAndUpdate(user._id, {
         locked: true
       })
-      await user.save()
+
       throw new ErrorWithStatusCode({
         message: USER_MESSAGE.ACCOUNT_LOCKED,
         statusCode: httpStatus.LOCKED
       })
-    } else {
-      await user.save()
     }
-
     throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.ACCOUNT_WILL_BE_LOCKED + ` ${MAX_LOGIN_ATTEMPTS - user.loginAttempts} times`,
+      message: USER_MESSAGE.ACCOUNT_WILL_BE_LOCKED + ` ${5 - newAttempts} times`,
       statusCode: httpStatus.BAD_REQUEST
     })
   }
+
   // Reset loginAttempts về 0
-  await Users.findByIdAndUpdate(user._id, {
-    loginAttempts: 0
-  })
+  await updateLoginAttempts(email, 0)
 
   // Kiểm tra đã đăng nhập từ thiết bị khác chưa
-  if (!existingDevice) {
+  const deviceExist = user.devices.find((device: any) => device.device_id === device_id)
+  if (!deviceExist) {
     const verificationToken = await signToken({
       payload: { _id: user._id, device_id },
       secretKey: process.env.VERIFICATION_TOKEN as string,
