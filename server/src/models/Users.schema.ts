@@ -49,7 +49,8 @@ const UserSchema = new Schema<IUser>(
     ],
     device: [
       {
-        type: String
+        device_id: String,
+        last_login: Date
       }
     ],
     status: {
@@ -78,16 +79,18 @@ const UserSchema = new Schema<IUser>(
       type: String,
       default: ''
     },
+    devices: [
+      {
+        type: String
+      }
+    ],
 
     loginAttempts: { type: Number, required: true, default: 0 },
     locked: {
       type: Boolean,
       default: false
     },
-    // sessionId: {
-    //   type: String,
-    //   default: null
-    // },
+
     confirmToken: {
       type: String,
       default: null

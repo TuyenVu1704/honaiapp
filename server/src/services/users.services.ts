@@ -18,8 +18,8 @@ import _ from 'lodash'
 import { randomPassword } from '~/utils/random'
 import { emailVerifyTokenBodyType } from '~/middlewares/emailVerifyToken.middlewares'
 import { ObjectId } from 'mongodb'
-import { JwtPayload } from 'jsonwebtoken'
-import { NextFunction } from 'express'
+import jwt, { JwtPayload } from 'jsonwebtoken'
+import { sendMail } from '~/config/mailConfig'
 
 /**
  * Description: Đăng ký tài khoản mới
@@ -78,6 +78,159 @@ export const registerUserServices = async (data: registerUserBodyType) => {
         email: user.email
       }
     }
+  }
+}
+
+/**
+ * Description: Đăng nhập tài khoản
+ * Req.body: email, password
+ * Response: message, data
+ * Data: accessToken, refreshToken
+ * @param data
+ * @returns
+ */
+export const loginServices = async (data: loginUserBodyType) => {
+  const { email, password, device_id } = data
+
+  const [user, existingDevice] = await Promise.all([
+    Users.findOne({ email }).select('email first_name password loginAttempts devices'),
+    Users.findOne({ email, 'devices.device_id': device_id }).select('_id').lean()
+  ])
+
+  // Kiểm tra xem tài khoản có đang bị khóa không
+
+  if (!user) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.EMAIL_OR_PASSWORD_EXISTED,
+      statusCode: httpStatus.BAD_REQUEST
+    })
+  } else if (user.isLocked()) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.ACCOUNT_LOCKED,
+      statusCode: httpStatus.LOCKED
+    })
+  }
+  // Kiểm tra password
+  const isMatch = await comparePassword(password, user.password)
+  // Nếu password không đúng thì tăng loginAttempts lên 1 và kiểm tra xem có đạt mức tối đa chưa
+  if (!isMatch) {
+    user.loginAttempts += 1
+    const MAX_LOGIN_ATTEMPTS = 5
+    if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+      await Users.findByIdAndUpdate(user._id, {
+        locked: true
+      })
+      await user.save()
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.ACCOUNT_LOCKED,
+        statusCode: httpStatus.LOCKED
+      })
+    } else {
+      await user.save()
+    }
+
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.ACCOUNT_WILL_BE_LOCKED + ` ${MAX_LOGIN_ATTEMPTS - user.loginAttempts} times`,
+      statusCode: httpStatus.BAD_REQUEST
+    })
+  }
+  // Reset loginAttempts về 0
+  await Users.findByIdAndUpdate(user._id, {
+    loginAttempts: 0
+  })
+
+  // Kiểm tra đã đăng nhập từ thiết bị khác chưa
+  if (!existingDevice) {
+    const verificationToken = await signToken({
+      payload: { _id: user._id, device_id },
+      secretKey: process.env.VERIFICATION_TOKEN as string,
+      expiresIn: process.env.EXPIRE_VERIFICATION_TOKEN as string
+    })
+    console.log(verificationToken)
+    const verificationUrl = `${process.env.CLIENT_URL}/verify-device?token=${verificationToken}`
+    await sendMail({
+      to: user.email,
+      subject: 'Verify Device',
+      templateName: 'verifyDevice',
+      dynamic_Field: {
+        name: user.first_name,
+        verificationUrl,
+        expirationTime: process.env.EXPIRE_VERIFICATION_TOKEN as string
+      }
+    })
+    return {
+      message: USER_MESSAGE.VERIFY_DEVICE_SENT
+    }
+  }
+
+  // Ký JWT
+  const [accessToken, refreshToken] = await Promise.all([
+    signToken({
+      payload: {
+        _id: user._id,
+        role: user.role,
+        email_verified: user.email_verified
+      },
+      secretKey: process.env.ACCESS_TOKEN as string,
+      expiresIn: process.env.EXPIRE_ACCESS_TOKEN as string
+    }),
+    signToken({
+      payload: {
+        _id: user._id,
+        role: user.role
+      },
+      secretKey: process.env.REFRESH_TOKEN as string,
+      expiresIn: process.env.EXPIRE_REFRESH_TOKEN as string
+    })
+  ])
+  // Kiểm tra user_id đã có refresh token trong db chưa
+  const refreshTokenExist = await RefreshToken.findOne({ user_id: user._id })
+  // Nếu có thì update refresh token
+  if (refreshTokenExist) {
+    await RefreshToken.findByIdAndUpdate(refreshTokenExist._id, {
+      refresh_token: refreshToken
+    })
+  } else {
+    // Nếu chưa thì tạo mới refresh token
+    const newRefreshToken = new RefreshToken({
+      user_id: user._id,
+      refresh_token: refreshToken
+    })
+    await newRefreshToken.save()
+  }
+  user.devices.push({ device_id, last_login: new Date() })
+  // Trả về thông tin token
+  return {
+    message: USER_MESSAGE.LOGIN_SUCCESSFULLY,
+    data: {
+      accessToken,
+      refreshToken
+    }
+  }
+}
+
+/**
+ * Description: Verify Device sau khi đăng nhập
+ * Req.query: token
+ * Response: message
+ * @param data
+ * @returns
+ */
+
+export const verifyDeviceService = async ({ _id, device_id }: { _id: string; device_id: string }) => {
+  // Tìm user theo _id
+  const user = await Users.findById(_id)
+  if (!user) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.USER_NOT_FOUND,
+      statusCode: httpStatus.NOT_FOUND
+    })
+  }
+  // Update device và last_login
+  user.devices.push({ device_id: device_id, last_login: new Date() })
+  await user.save()
+  return {
+    message: USER_MESSAGE.VERIFY_DEVICE_SUCCESSFULLY
   }
 }
 
@@ -314,106 +467,6 @@ export const resendEmailVerifyServices = async (data: resendEmailVerifyTokenBody
   })
   return {
     message: USER_MESSAGE.RESEND_EMAIL_VERIFY_SUCCESSFULLY
-  }
-}
-
-/**
- * Description: Đăng nhập tài khoản
- * Req.body: email, password
- * Response: message, data
- * Data: accessToken, refreshToken
- * @param data
- * @returns
- */
-export const loginServices = async (data: loginUserBodyType) => {
-  const { email, password } = data
-  // Kiểm tra email có tồn tại không
-  const user = await Users.findOne({ email })
-  // Kiểm tra xem tài khoản có đang bị khóa không
-
-  if (!user) {
-    throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.EMAIL_OR_PASSWORD_EXISTED,
-      statusCode: httpStatus.BAD_REQUEST
-    })
-  } else if (user.isLocked()) {
-    throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.ACCOUNT_LOCKED,
-      statusCode: httpStatus.LOCKED
-    })
-  }
-  // Kiểm tra password
-  const isMatch = await comparePassword(password, user.password)
-  // Nếu password không đúng thì tăng loginAttempts lên 1 và kiểm tra xem có đạt mức tối đa chưa
-  if (!isMatch) {
-    user.loginAttempts += 1
-    const MAX_LOGIN_ATTEMPTS = 5
-    if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
-      await Users.findByIdAndUpdate(user._id, {
-        locked: true
-      })
-      await user.save()
-      throw new ErrorWithStatusCode({
-        message: USER_MESSAGE.ACCOUNT_LOCKED,
-        statusCode: httpStatus.LOCKED
-      })
-    } else {
-      await user.save()
-    }
-
-    throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.ACCOUNT_WILL_BE_LOCKED + ` ${MAX_LOGIN_ATTEMPTS - user.loginAttempts} times`,
-      statusCode: httpStatus.BAD_REQUEST
-    })
-  }
-  // Reset loginAttempts về 0
-  await Users.findByIdAndUpdate(user._id, {
-    loginAttempts: 0
-  })
-
-  // Ký JWT
-  const [accessToken, refreshToken] = await Promise.all([
-    signToken({
-      payload: {
-        _id: user._id,
-        role: user.role,
-        email_verified: user.email_verified
-      },
-      secretKey: process.env.ACCESS_TOKEN as string,
-      expiresIn: process.env.EXPIRE_ACCESS_TOKEN as string
-    }),
-    signToken({
-      payload: {
-        _id: user._id,
-        role: user.role
-      },
-      secretKey: process.env.REFRESH_TOKEN as string,
-      expiresIn: process.env.EXPIRE_REFRESH_TOKEN as string
-    })
-  ])
-  // Kiểm tra user_id đã có refresh token trong db chưa
-  const refreshTokenExist = await RefreshToken.findOne({ user_id: user._id })
-  // Nếu có thì update refresh token
-  if (refreshTokenExist) {
-    await RefreshToken.findByIdAndUpdate(refreshTokenExist._id, {
-      refresh_token: refreshToken
-    })
-  } else {
-    // Nếu chưa thì tạo mới refresh token
-    const newRefreshToken = new RefreshToken({
-      user_id: user._id,
-      refresh_token: refreshToken
-    })
-    await newRefreshToken.save()
-  }
-
-  // Trả về thông tin token
-  return {
-    message: USER_MESSAGE.LOGIN_SUCCESSFULLY,
-    data: {
-      accessToken,
-      refreshToken
-    }
   }
 }
 

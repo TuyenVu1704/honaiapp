@@ -44,6 +44,26 @@ export const registerUserRes = z.object({
 
 export type registerUserResType = z.infer<typeof registerUserRes>
 
+// Login user body
+export const loginUserBody = z
+  .object({
+    email: z.string().email({ message: 'Invalid email address' }),
+    password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
+    device_id: z.string()
+  })
+  .strict()
+
+export type loginUserBodyType = z.infer<typeof loginUserBody>
+export const loginUserRes = z.object({
+  data: z.object({
+    accessToken: z.string(),
+    refreshToken: z.string()
+  }),
+  message: z.string()
+})
+
+export type loginUserResType = z.infer<typeof loginUserRes>
+
 // Get me response
 export const getMeRes = z.object({
   message: z.string(),
@@ -112,25 +132,6 @@ export const adminUpdateUserProfileRes = z.object({
     user: z.object({})
   })
 })
-
-// Login user body
-export const loginUserBody = z
-  .object({
-    email: z.string().email({ message: 'Invalid email address' }),
-    password: z.string().min(6, { message: 'Password must be at least 6 characters' })
-  })
-  .strict()
-
-export type loginUserBodyType = z.infer<typeof loginUserBody>
-export const loginUserRes = z.object({
-  data: z.object({
-    accessToken: z.string(),
-    refreshToken: z.string()
-  }),
-  message: z.string()
-})
-
-export type loginUserResType = z.infer<typeof loginUserRes>
 
 // Resend email verify token body
 export const resendEmailVerifyTokenBody = z

@@ -24,7 +24,6 @@ export const refreshTokenMiddleware = tryCatchHandler(async (req: Request, res: 
 
   // Kiểm tra refresh token có trong body không
   if (!refresh_token.refresh_token) {
-    console.log(1)
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.REFRESH_TOKEN_IN_BODY_IS_REQUIRED,
       statusCode: httpStatus.UNAUTHORIZED
@@ -35,7 +34,6 @@ export const refreshTokenMiddleware = tryCatchHandler(async (req: Request, res: 
 
   jwt.verify(refresh_token.refresh_token, process.env.REFRESH_TOKEN as string, (error, decoded) => {
     if (error) {
-      console.log(2)
       if (error.name === 'JsonWebTokenError') {
         throw new ErrorWithStatusCode({
           message: 'RefreshToken' + ' ' + error.message,

@@ -14,6 +14,10 @@ export const USER_MESSAGE = {
   EMAIL_OR_PASSWORD_INCORRECT: 'Email or password is incorrect',
   EMAIL_NOT_FOUND: 'Email not found',
   RESEND_EMAIL_VERIFY_SUCCESSFULLY: 'Resend email verify token successfully',
+  VERIFY_DEVICE_SENT: 'Verify device sent',
+  VERIFY_DEVICE_SUCCESSFULLY: 'Verify device successfully',
+  EMAIL_SENT_SUCCESSFULLY: 'Email sent successfully',
+  EMAIL_SENT_FAILED: 'Email sent failed',
 
   //Phone
   PHONE_EXISTED: 'Phone number already exists',
@@ -37,6 +41,7 @@ export const USER_MESSAGE = {
   EMAIL_VERIFY_TOKEN_IS_STRING: 'Email verify token must be a string',
   EMAIL_VERIFY_TOKEN_IN_BODY_IS_REQUIRED: 'Email verify token in body is required',
   USER_NOT_FOUND_OR_EMAIL_HAS_BEEN_VERIFIED: 'User not found or Email has been verified',
+
   // User
   USER_NOT_FOUND: 'User not found',
   USER_IS_VERIFIED: 'User is verified',

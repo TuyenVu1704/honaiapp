@@ -18,7 +18,7 @@ export interface IUser extends Document {
   reset_password_token: string
   password_reseted_at: Date[]
   avatar: string
-
+  devices: Array<{ device_id: string; last_login: Date }>
   confirmToken: string
   loginAttempts: number
   locked: boolean

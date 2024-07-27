@@ -8,9 +8,11 @@ import {
   logoutUserController,
   registerUserController,
   resendEmailVerifyTokenController,
+  verifyDeviceController,
   verifyEmailController
 } from '~/controller/users.controller'
 import { accessTokenMiddleware, checkIsAdmin, checkIsEmailVerified } from '~/middlewares/accessToken.middlewares'
+import { emailVerifyDeviceTokenMiddleware } from '~/middlewares/emailVerifyDevice.Middlewares'
 import { emailVerifyTokenMiddleware } from '~/middlewares/emailVerifyToken.middlewares'
 import { filterReqMiddleware } from '~/middlewares/filterReq.middlewares'
 import { refreshTokenBody, refreshTokenMiddleware } from '~/middlewares/refreshToken.middlewares'
@@ -19,10 +21,9 @@ import {
   adminUpdateUserProfileBody,
   adminUpdateUserProfileBodyType,
   loginUserBody,
+  loginUserBodyType,
   registerUserBody,
-  resendEmailVerifyTokenBody,
-  updateAvatarBody,
-  updateAvatarBodyType
+  resendEmailVerifyTokenBody
 } from '~/middlewares/users.middlewares'
 import { validate } from '~/utils/validate'
 
@@ -35,6 +36,30 @@ const router = Router()
  * roles: Admin
  */
 router.post('/register', accessTokenMiddleware, checkIsAdmin, validate(registerUserBody), registerUserController)
+
+/**
+ * Description: Đăng nhập tài khoản
+ * Method: POST
+ * Request: /users/login
+ * Request body
+ *
+ */
+router.post(
+  '/login',
+  validate(loginUserBody),
+  filterReqMiddleware<loginUserBodyType>(['email', 'password', 'device_id']),
+  loginUserController
+)
+
+/**
+ * Description: Verify Device sau khi đăng nhập
+ * Method: GET
+ * Request: /users/verify-device
+ * Request Query: { token: string }
+ *
+ */
+
+router.get('/verify-device', emailVerifyDeviceTokenMiddleware, verifyDeviceController)
 
 /**
  * Description: Verify Email sau khi đăng ký tài khoản thành công
@@ -105,13 +130,13 @@ router.patch(
  *
  */
 
-router.patch(
-  '/change-password',
-  accessTokenMiddleware,
-  checkIsEmailVerified,
-  validate(changePasswordBody),
-  changePasswordController
-)
+// router.patch(
+//   '/change-password',
+//   accessTokenMiddleware,
+//   checkIsEmailVerified,
+//   validate(changePasswordBody),
+//   changePasswordController
+// )
 
 /**
  * Description: Resend Email Verify Token Sau khi user không nhận được email verify token
@@ -136,15 +161,6 @@ router.post(
  */
 
 router.get('/get-all-users', accessTokenMiddleware, checkIsAdmin, getAllUsersController)
-
-/**
- * Description: Đăng nhập tài khoản
- * Method: POST
- * Request: /users/login
- * Request body
- *
- */
-router.post('/login', validate(loginUserBody), loginUserController)
 
 /**
  * Description: User Đăng xuất tài khoản

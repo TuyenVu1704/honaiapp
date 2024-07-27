@@ -1,6 +1,5 @@
 import { Request, Response } from 'express'
 import { JwtPayload } from 'jsonwebtoken'
-import sharp from 'sharp'
 
 import { getAllUserQueryType, getUserParamsType } from '~/middlewares/users.middlewares'
 import {
@@ -12,19 +11,38 @@ import {
   logoutServices,
   registerUserServices,
   resendEmailVerifyServices,
-  updateAvatarService,
+  verifyDeviceService,
   verifyEmailServices
 } from '~/services/users.services'
 
 import tryCatchHandler from '~/utils/trycatchHandler'
-import fs from 'fs'
+
 import { isProduction } from '~/config/config'
 import { config } from 'dotenv'
 
 config()
-// Đăng ký tài khoản mới
+/**
+ * Description: Đăng ký tài khoản mới
+ */
 export const registerUserController = tryCatchHandler(async (req: Request, res: Response) => {
   const result = await registerUserServices(req.body)
+  return res.json(result)
+})
+
+/**
+ * Description: Đăng nhập tài khoản
+ */
+export const loginUserController = tryCatchHandler(async (req: Request, res: Response) => {
+  const result = await loginServices(req.body)
+  return res.json(result)
+})
+
+/**
+ * Description: Verify Device sau khi đăng nhập
+ */
+export const verifyDeviceController = tryCatchHandler(async (req: Request, res: Response) => {
+  const { _id, device_id } = req.decoded_email_verify_token as JwtPayload
+  const result = await verifyDeviceService({ _id, device_id })
   return res.json(result)
 })
 
@@ -84,12 +102,6 @@ export const getAllUsersController = tryCatchHandler(async (req: Request, res: R
 // Admin gửi lại email verify token cho user
 export const resendEmailVerifyTokenController = tryCatchHandler(async (req: Request, res: Response) => {
   const result = await resendEmailVerifyServices(req.body)
-  return res.json(result)
-})
-
-// Đăng nhập tài khoản
-export const loginUserController = tryCatchHandler(async (req: Request, res: Response) => {
-  const result = await loginServices(req.body)
   return res.json(result)
 })
 
