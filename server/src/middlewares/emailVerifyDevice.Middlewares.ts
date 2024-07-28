@@ -4,7 +4,10 @@ import z from 'zod'
 import { ErrorWithStatusCode } from '~/config/errors'
 import httpStatus from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/messages'
+import { verifyToken } from '~/utils/jwt'
 import tryCatchHandler from '~/utils/trycatchHandler'
+import { config } from 'dotenv'
+config()
 // Verify Device Query
 export const verifyDeviceQuery = z
   .object({
@@ -23,23 +26,23 @@ export const emailVerifyDeviceTokenMiddleware = tryCatchHandler(
         statusCode: httpStatus.BAD_REQUEST
       })
     }
-    jwt.verify(token, process.env.VERIFICATION_TOKEN as string, (error, decoded) => {
-      if (error) {
-        if (error.name === 'JsonWebTokenError') {
-          throw new ErrorWithStatusCode({
-            message: 'Email Verify Token' + ' ' + error.message,
-            statusCode: httpStatus.UNAUTHORIZED
-          })
-        } else {
-          throw new ErrorWithStatusCode({
-            message: 'Email Verify Token' + ' ' + error.message,
-            statusCode: httpStatus.UNPROCESSABLE_ENTITY
-          })
-        }
-      }
+    try {
+      const decoded = await verifyToken(token, process.env.VERIFICATION_TOKEN as string)
       req.decoded_email_verify_token = decoded as jwt.JwtPayload
-
       next()
-    })
+    } catch (error) {
+      if (error instanceof jwt.TokenExpiredError) {
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.EMAIL_VERIFY_DEVICE_TOKEN_EXPIRED,
+          statusCode: httpStatus.BAD_REQUEST
+        })
+      }
+      if (error instanceof jwt.JsonWebTokenError) {
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.EMAIL_VERIFY_DEVICE_TOKEN_INVALID_TOKEN,
+          statusCode: httpStatus.BAD_REQUEST
+        })
+      }
+    }
   }
 )

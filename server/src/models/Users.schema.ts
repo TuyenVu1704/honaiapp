@@ -7,16 +7,19 @@ const UserSchema = new Schema<IUser>(
   {
     first_name: {
       type: String,
-      required: true
+      required: true,
+      index: true
     },
     last_name: {
       type: String,
-      required: true
+      required: true,
+      index: true
     },
     email: {
       type: String,
       required: true,
-      unique: true
+      unique: true,
+      index: true
     },
     phone: {
       type: Number,
@@ -47,7 +50,7 @@ const UserSchema = new Schema<IUser>(
         type: String
       }
     ],
-    device: [
+    devices: [
       {
         device_id: String,
         last_login: Date
@@ -57,8 +60,7 @@ const UserSchema = new Schema<IUser>(
       type: String
     },
     email_verify_token: {
-      type: String,
-      default: ''
+      type: String
     },
     email_verified: {
       type: Boolean,
@@ -79,12 +81,6 @@ const UserSchema = new Schema<IUser>(
       type: String,
       default: ''
     },
-    devices: [
-      {
-        type: String
-      }
-    ],
-
     loginAttempts: { type: Number, required: true, default: 0 },
     locked: {
       type: Boolean,
@@ -102,10 +98,6 @@ const UserSchema = new Schema<IUser>(
 // Kiểm tra xem tài khoản có đang bị khóa không
 UserSchema.methods.isLocked = function () {
   return this.locked
-}
-// Kiểm tra xem tài khoản đã active chưa
-UserSchema.methods.isActive = function () {
-  return this.email_verified && !this.locked
 }
 
 const Users = mongoose.model('Users', UserSchema)

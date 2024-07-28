@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express'
-import { JwtPayload } from 'jsonwebtoken'
+import { JsonWebTokenError, JwtPayload, TokenExpiredError } from 'jsonwebtoken'
 import { ErrorWithStatusCode } from '~/config/errors'
 import httpStatus from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/messages'
 import tryCatchHandler from '~/utils/trycatchHandler'
-import jwt from 'jsonwebtoken'
 import { config } from 'dotenv'
+import { verifyToken } from '~/utils/jwt'
 config()
 
 // Middleware kiểm tra accessToken
@@ -18,18 +18,25 @@ export const accessTokenMiddleware = tryCatchHandler(async (req: Request, res: R
       statusCode: httpStatus.UNAUTHORIZED
     })
   }
-  jwt.verify(accessToken, process.env.ACCESS_TOKEN as string, (error, decoded) => {
-    if (error) {
+  try {
+    const decoded = await verifyToken(accessToken, process.env.ACCESS_TOKEN_SECRET as string)
+    req.user = decoded
+    req.isAdmin = req.user.role === 0
+    next()
+  } catch (error) {
+    if (error instanceof TokenExpiredError) {
       throw new ErrorWithStatusCode({
-        message: 'Accesstoken' + ' ' + error.message,
+        message: USER_MESSAGE.ACCESS_TOKEN_IS_EXPIRED,
         statusCode: httpStatus.UNAUTHORIZED
       })
     }
-
-    req.user = decoded as JwtPayload
-    req.isAdmin = req.user.role === 0
-    next()
-  })
+    if (error instanceof JsonWebTokenError) {
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.ACCESS_TOKEN_IS_INVALID,
+        statusCode: httpStatus.UNAUTHORIZED
+      })
+    }
+  }
 })
 
 // Check admin

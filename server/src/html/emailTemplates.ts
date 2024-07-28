@@ -1,3 +1,5 @@
+import { verify } from 'crypto'
+
 const baseTemplate = `
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -97,8 +99,22 @@ const templates: Record<string, string> = {
     <p>If you didn't attempt to log in, please change your password immediately.</p>
     <span>This link will expire in {{expirationTime}}.</span>
     <p>Best regards,<br>Your App Team</p>
-  `
+  `,
   // Thêm các mẫu email khác ở đây
+  verifyEmail: `
+    <h1>Verify Your Email Address</h1>
+    <p>Hello {{name}},</p>
+    <p>Congratulations on being a member of Ho Nai Company Limited! Please click the button below, and then change your password:</p>
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" class="buttonContent">
+      <tr>
+        <td align="center" valign="middle">
+          <a href="{{verificationUrl}}" target="_blank">Verify Email</a>
+        </td>
+      </tr>
+    </table>
+    <span>This link will expire in {{expirationTime}}.</span>
+    <p>Best regards,<br>Your App Team</p>
+  `
 }
 
 export const generateEmailTemplate = (templateName: string, dynamicFields: Record<string, string>): string => {

@@ -25,6 +25,7 @@ import {
   registerUserBody,
   resendEmailVerifyTokenBody
 } from '~/middlewares/users.middlewares'
+import { adminResendEmailLimiter } from '~/utils/resendEmailLimiter'
 import { validate } from '~/utils/validate'
 
 const router = Router()
@@ -37,6 +38,31 @@ const router = Router()
  */
 router.post('/register', accessTokenMiddleware, checkIsAdmin, validate(registerUserBody), registerUserController)
 
+/**
+ * Description: Verify Email sau khi đăng ký tài khoản thành công
+ * Method: GET
+ * Request: /users/verify-email
+ * Request query: { email_verify_token: string }
+ *
+ */
+
+router.get('/verify-email', emailVerifyTokenMiddleware, verifyEmailController)
+
+/**
+ * Description: Resend Email Verify Token Sau khi user không nhận được email verify token
+ * Method: POST
+ * Request: /users/resend-email-verify-token
+ * Request body: {}
+ * Roles: Admin
+ * */
+router.post(
+  '/admin/resend-email-verify-token',
+  accessTokenMiddleware,
+  checkIsAdmin,
+  adminResendEmailLimiter,
+  validate(resendEmailVerifyTokenBody),
+  resendEmailVerifyTokenController
+)
 /**
  * Description: Đăng nhập tài khoản
  * Method: POST
@@ -60,16 +86,6 @@ router.post(
  */
 
 router.get('/verify-device', emailVerifyDeviceTokenMiddleware, verifyDeviceController)
-
-/**
- * Description: Verify Email sau khi đăng ký tài khoản thành công
- * Method: POST
- * Request: /users/verify-email
- * Request body: { email_verify_token: string }
- *
- */
-
-router.post('/verify-email', emailVerifyTokenMiddleware, verifyEmailController)
 
 /**
  * Description: Get Me
@@ -137,20 +153,6 @@ router.patch(
 //   validate(changePasswordBody),
 //   changePasswordController
 // )
-
-/**
- * Description: Resend Email Verify Token Sau khi user không nhận được email verify token
- * Method: POST
- * Request: /users/resend-email-verify-token
- * Request body: {}
- * Roles: Admin
- * */
-router.post(
-  '/resend-email-verify-token',
-  checkIsAdmin,
-  validate(resendEmailVerifyTokenBody),
-  resendEmailVerifyTokenController
-)
 
 /**
  * Description: Get All Users

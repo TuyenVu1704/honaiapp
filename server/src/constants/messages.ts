@@ -33,6 +33,7 @@ export const USER_MESSAGE = {
   ACCESS_TOKEN_IS_EXPIRED: 'Access token is expired',
   REFRESH_TOKEN_INVALID: 'Refresh token is invalid',
   REFRESH_TOKEN_IS_REQUIRED: 'Refresh token is required',
+  REFRESH_TOKEN_IS_INVALID: 'Refresh token is invalid',
   REFRESH_TOKEN_IS_STRING: 'Refresh token must be a string',
   REFRESH_TOKEN_IS_EXPIRED: 'Refresh token is expired',
   REFRESH_TOKEN_IN_BODY_IS_REQUIRED: 'Refresh token in body is required',
@@ -40,7 +41,11 @@ export const USER_MESSAGE = {
   EMAIL_VERIFY_TOKEN_IS_REQUIRED: 'Email verify token is required',
   EMAIL_VERIFY_TOKEN_IS_STRING: 'Email verify token must be a string',
   EMAIL_VERIFY_TOKEN_IN_BODY_IS_REQUIRED: 'Email verify token in body is required',
+  EMAIL_VERIFY_EMAIL_TOKEN_EXPIRED: 'Email verify email token expired',
+  EMAIL_VERIFY_EMAIL_TOKEN_INVALID_TOKEN: 'Email verify email token invalid token',
   USER_NOT_FOUND_OR_EMAIL_HAS_BEEN_VERIFIED: 'User not found or Email has been verified',
+  EMAIL_VERIFY_DEVICE_TOKEN_EXPIRED: 'Email verify device token expired',
+  EMAIL_VERIFY_DEVICE_TOKEN_INVALID_TOKEN: 'Email verify device token invalid token',
 
   // User
   USER_NOT_FOUND: 'User not found',

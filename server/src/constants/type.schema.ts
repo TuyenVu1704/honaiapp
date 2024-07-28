@@ -11,7 +11,6 @@ export interface IUser extends Document {
   permissions: string[]
   department: string[]
   position: string[]
-  device: string[]
   status: string
   email_verify_token: string
   email_verified: boolean
@@ -23,7 +22,6 @@ export interface IUser extends Document {
   loginAttempts: number
   locked: boolean
   isLocked: () => boolean
-  isActive: () => boolean
 }
 
 export interface IRefreshToken extends Document {

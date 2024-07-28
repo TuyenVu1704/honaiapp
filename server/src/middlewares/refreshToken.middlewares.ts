@@ -6,6 +6,7 @@ import jwt, { JwtPayload } from 'jsonwebtoken'
 import { z } from 'zod'
 import { config } from 'dotenv'
 import tryCatchHandler from '~/utils/trycatchHandler'
+import { verifyToken } from '~/utils/jwt'
 config()
 
 // Body kiểm tra refresh token
@@ -31,23 +32,22 @@ export const refreshTokenMiddleware = tryCatchHandler(async (req: Request, res: 
   }
 
   // Verify refresh token
-
-  jwt.verify(refresh_token.refresh_token, process.env.REFRESH_TOKEN as string, (error, decoded) => {
-    if (error) {
-      if (error.name === 'JsonWebTokenError') {
-        throw new ErrorWithStatusCode({
-          message: 'RefreshToken' + ' ' + error.message,
-          statusCode: httpStatus.UNAUTHORIZED
-        })
-      } else {
-        throw new ErrorWithStatusCode({
-          message: 'RefreshToken' + ' ' + error.message,
-          statusCode: httpStatus.UNPROCESSABLE_ENTITY
-        })
-      }
-    }
-    //Gán decoded refresh token vào biến decoded_refresh_token
+  try {
+    const decoded = await verifyToken(refresh_token.refresh_token, process.env.REFRESH_TOKEN as string)
     req.decoded_refresh_token = decoded as JwtPayload
     next()
-  })
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.REFRESH_TOKEN_IS_EXPIRED,
+        statusCode: httpStatus.UNAUTHORIZED
+      })
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.REFRESH_TOKEN_IS_INVALID,
+        statusCode: httpStatus.UNAUTHORIZED
+      })
+    }
+  }
 })

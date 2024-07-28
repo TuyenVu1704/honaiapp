@@ -19,6 +19,7 @@ import tryCatchHandler from '~/utils/trycatchHandler'
 
 import { isProduction } from '~/config/config'
 import { config } from 'dotenv'
+import { emailVerifyTokenQueryType } from '~/middlewares/emailVerifyToken.middlewares'
 
 config()
 /**
@@ -26,6 +27,28 @@ config()
  */
 export const registerUserController = tryCatchHandler(async (req: Request, res: Response) => {
   const result = await registerUserServices(req.body)
+  return res.json(result)
+})
+
+/**
+ * Description: Verify Email sau khi đăng ký tài khoản thành công
+ *
+ */
+export const verifyEmailController = tryCatchHandler(async (req: Request, res: Response) => {
+  const { email_verify_token } = req.query as emailVerifyTokenQueryType
+  const { _id } = req.decoded_email_verify_token as JwtPayload
+  const result = await verifyEmailServices({ _id, email_verify_token })
+  return res.json(result)
+})
+
+/**
+ * Description: Resend Email Verify Token Sau khi user không nhận được email verify token
+ * Roles: Admin
+ */
+export const resendEmailVerifyTokenController = tryCatchHandler(async (req: Request, res: Response) => {
+  const { _id } = req.user as JwtPayload // _id admin gửi request
+  const { email } = req.body
+  const result = await resendEmailVerifyServices({ _id, email })
   return res.json(result)
 })
 
@@ -43,13 +66,6 @@ export const loginUserController = tryCatchHandler(async (req: Request, res: Res
 export const verifyDeviceController = tryCatchHandler(async (req: Request, res: Response) => {
   const { _id, device_id } = req.decoded_email_verify_token as JwtPayload
   const result = await verifyDeviceService({ _id, device_id })
-  return res.json(result)
-})
-
-// Verify Email sau khi đăng ký tài khoản thành công
-// Verify Email thành công sau khi đăng ký tài khoản yêu cầu đăng nhập và đưa vào trang thay đổi mật khẩu
-export const verifyEmailController = tryCatchHandler(async (req: Request, res: Response) => {
-  const result = await verifyEmailServices(req.decoded_email_verify_token as JwtPayload, req.body)
   return res.json(result)
 })
 
@@ -95,13 +111,6 @@ export const adminUpdateUserProfileController = tryCatchHandler(async (req: Requ
 export const getAllUsersController = tryCatchHandler(async (req: Request, res: Response) => {
   const queries = { ...req.query }
   const result = await getAllUsersServices(queries as getAllUserQueryType)
-  return res.json(result)
-})
-
-// Resend Email Verify Token Sau khi user không nhận được email verify token
-// Admin gửi lại email verify token cho user
-export const resendEmailVerifyTokenController = tryCatchHandler(async (req: Request, res: Response) => {
-  const result = await resendEmailVerifyServices(req.body)
   return res.json(result)
 })
 

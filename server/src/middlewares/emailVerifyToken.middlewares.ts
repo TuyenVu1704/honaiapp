@@ -6,50 +6,41 @@ import jwt, { JwtPayload } from 'jsonwebtoken'
 import { z } from 'zod'
 import { config } from 'dotenv'
 import tryCatchHandler from '~/utils/trycatchHandler'
+import { verifyToken } from '~/utils/jwt'
 config()
-// Body kiểm tra emailVerify token
-export const emailVerifyTokenBody = z
+// Email Verify Token Query
+export const emailVerifyTokenQuery = z
   .object({
-    email_verify_token: z.string({
-      required_error: USER_MESSAGE.EMAIL_VERIFY_TOKEN_IS_REQUIRED,
-      invalid_type_error: USER_MESSAGE.EMAIL_VERIFY_TOKEN_IS_STRING
-    })
+    email_verify_token: z.string()
   })
   .strict()
 
-// Kiểu của body kiểm tra emailVerify token
-export type emailVerifyTokenBodyType = z.infer<typeof emailVerifyTokenBody>
+export type emailVerifyTokenQueryType = z.infer<typeof emailVerifyTokenQuery>
 
-// Middleware kiểm tra emailVerify token
 export const emailVerifyTokenMiddleware = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const email_verify_token = req.body as emailVerifyTokenBodyType
-
-  // Kiểm tra emailVerify token có trong body không
-  if (!email_verify_token.email_verify_token) {
+  const { email_verify_token } = req.body as emailVerifyTokenQueryType
+  if (!email_verify_token) {
     throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.EMAIL_VERIFY_TOKEN_IN_BODY_IS_REQUIRED,
-      statusCode: httpStatus.UNAUTHORIZED
+      message: USER_MESSAGE.EMAIL_VERIFY_TOKEN_IS_REQUIRED,
+      statusCode: httpStatus.BAD_REQUEST
     })
   }
-
-  // Verify emailVerify token
-
-  jwt.verify(email_verify_token.email_verify_token, process.env.EMAIL_VERIFY_TOKEN as string, (error, decoded) => {
-    if (error) {
-      if (error.name === 'JsonWebTokenError') {
-        throw new ErrorWithStatusCode({
-          message: 'emailVerifyToken' + ' ' + error.message,
-          statusCode: httpStatus.UNAUTHORIZED
-        })
-      } else {
-        throw new ErrorWithStatusCode({
-          message: 'emailVerifyToken' + ' ' + error.message,
-          statusCode: httpStatus.UNPROCESSABLE_ENTITY
-        })
-      }
-    }
-    //Gán decoded emailVerify token vào biến decoded_emailVerify_token
+  try {
+    const decoded = await verifyToken(email_verify_token, process.env.VERIFICATION_TOKEN as string)
     req.decoded_email_verify_token = decoded as JwtPayload
     next()
-  })
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.EMAIL_VERIFY_EMAIL_TOKEN_EXPIRED,
+        statusCode: httpStatus.BAD_REQUEST
+      })
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.EMAIL_VERIFY_EMAIL_TOKEN_INVALID_TOKEN,
+        statusCode: httpStatus.BAD_REQUEST
+      })
+    }
+  }
 })

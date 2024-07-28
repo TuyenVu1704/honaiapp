@@ -5,23 +5,20 @@ import { refreshTokenBodyType } from '~/middlewares/refreshToken.middlewares'
 import {
   adminUpdateUserProfileBodyType,
   loginUserBodyType,
-  loginUserResRedisType,
   registerUserBodyType,
-  resendEmailVerifyTokenBodyType,
-  updateAvatarBodyType
+  resendEmailVerifyTokenBodyType
 } from '~/middlewares/users.middlewares'
 import RefreshToken from '~/models/RefreshToken.schema'
 import Users from '~/models/Users.schema'
 import { capitalizeAfterSpace } from '~/utils/captalizeAfterSpace'
 import { comparePassword, hashPassword } from '~/utils/hashPassword'
 import { signToken } from '~/utils/jwt'
-import _, { get } from 'lodash'
+import _ from 'lodash'
 import { randomPassword } from '~/utils/random'
-import { emailVerifyTokenBodyType } from '~/middlewares/emailVerifyToken.middlewares'
 import { ObjectId } from 'mongodb'
-import jwt, { JwtPayload } from 'jsonwebtoken'
 import { sendMail } from '~/config/mailConfig'
 import { cacheUser, getCachedUser, getLoginAttempts, updateLoginAttempts } from '~/utils/redisUtils'
+import { checkUserExistence } from '~/utils/checkUserExitence'
 
 /**
  * Description: Đăng ký tài khoản mới
@@ -36,15 +33,7 @@ export const registerUserServices = async (data: registerUserBodyType) => {
     capitalizeAfterSpace(data.last_name)
   ])
   // Check email và phone đã tồn tại chưa
-  const userExist = await Users.findOne({
-    $or: [{ email: data.email }, { phone: data.phone }]
-  })
-  if (userExist) {
-    throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.EMAIL_OR_PHONE_EXISTED,
-      statusCode: httpStatus.BAD_REQUEST
-    })
-  }
+  await checkUserExistence(data.email, data.phone)
   // Tao _id cho user
   const _id = new ObjectId()
 
@@ -57,6 +46,21 @@ export const registerUserServices = async (data: registerUserBodyType) => {
     expiresIn: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
   })
 
+  // Tạo url verify email
+  const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email?token=${email_verify_token}`
+  // Gửi email verify token cho user
+  await sendMail({
+    to: data.email,
+    subject: 'Verify Email',
+    templateName: 'verifyEmail',
+    dynamic_Field: {
+      name: first_name,
+      verifyEmailUrl,
+      expirationTime: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
+    }
+  })
+
+  const hashedPassword = data.password === '' ? await randomPassword(6) : await hashPassword(data.password)
   // Tạo user trong mongodb
   const user = new Users({
     ...data,
@@ -64,7 +68,7 @@ export const registerUserServices = async (data: registerUserBodyType) => {
     email_verify_token,
     first_name,
     last_name,
-    password: data.password === '' ? await randomPassword(6) : await hashPassword(data.password)
+    password: hashedPassword
   })
   await user.save()
 
@@ -80,6 +84,91 @@ export const registerUserServices = async (data: registerUserBodyType) => {
         email: user.email
       }
     }
+  }
+}
+
+/**
+ * Description: Verify Email sau khi đăng ký tài khoản thành công
+ * Req.query: email_verify_token
+ * req.decoded_email_verify_token: _id
+ * Response: message
+ * @param decoded
+ * @param data
+ * @returns
+ */
+export const verifyEmailServices = async ({ _id, email_verify_token }: { _id: string; email_verify_token: string }) => {
+  // Tìm user theo _id và kiểm tra email_verify_token
+  const user = await Users.findOne({ _id, email_verify_token })
+  if (!user) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.USER_NOT_FOUND_OR_EMAIL_HAS_BEEN_VERIFIED,
+      statusCode: httpStatus.NOT_FOUND
+    })
+  }
+  // Kiểm tra email đã được verify chưa
+  if (user.email_verified) {
+    return {
+      message: USER_MESSAGE.USER_IS_VERIFIED
+    }
+  }
+  // Update email_verified thành true
+  user.email_verified = true
+  user.email_verify_token = ''
+  await user.save()
+  return {
+    message: USER_MESSAGE.EMAIL_VERIFY_SUCCESSFULLY
+  }
+}
+
+/**
+ * Description: Resend Email Verify Token Sau khi user không nhận được email verify token
+ * Req.body: email
+ * Response: message
+ *
+ */
+
+export const resendEmailVerifyServices = async ({ _id, email }: { _id: string; email: string }) => {
+  //
+  // Kiểm tra email có tồn tại không
+  const user = await Users.findOne({ email })
+  if (!user) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.EMAIL_NOT_FOUND,
+      statusCode: httpStatus.NOT_FOUND
+    })
+  }
+  // Kiểm tra email đã được verify chưa
+  if (user.email_verified) {
+    return {
+      message: USER_MESSAGE.USER_IS_VERIFIED
+    }
+  }
+  // Tạo mới email verify token
+  const email_verify_token = await signToken({
+    payload: {
+      _id: user._id
+    },
+    secretKey: process.env.EMAIL_VERIFY_TOKEN as string,
+    expiresIn: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
+  })
+  // Tạo url verify email
+  const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email?token=${email_verify_token}`
+  // Gửi email verify token cho user
+  await sendMail({
+    to: user.email,
+    subject: 'Verify Email',
+    templateName: 'verifyEmail',
+    dynamic_Field: {
+      name: user.first_name,
+      verifyEmailUrl,
+      expirationTime: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
+    }
+  })
+  // Update email_verify_token trong db
+  user.email_verify_token = email_verify_token
+  await user.save()
+  return {
+    message: USER_MESSAGE.RESEND_EMAIL_VERIFY_SUCCESSFULLY
   }
 }
 
@@ -152,8 +241,9 @@ export const loginServices = async (data: loginUserBodyType) => {
       secretKey: process.env.VERIFICATION_TOKEN as string,
       expiresIn: process.env.EXPIRE_VERIFICATION_TOKEN as string
     })
-    console.log(verificationToken)
+    // Tạo url verify device
     const verificationUrl = `${process.env.CLIENT_URL}/verify-device?token=${verificationToken}`
+    // Gửi email verify device cho user
     await sendMail({
       to: user.email,
       subject: 'Verify Device',
@@ -237,44 +327,6 @@ export const verifyDeviceService = async ({ _id, device_id }: { _id: string; dev
   await user.save()
   return {
     message: USER_MESSAGE.VERIFY_DEVICE_SUCCESSFULLY
-  }
-}
-
-/**
- * Description: Verify Email sau khi đăng ký tài khoản thành công
- * Req.body: email_verify_token
- * req.decoded_email_verify_token: _id
- * Response: message
- * @param decoded
- * @param data
- * @returns
- */
-export const verifyEmailServices = async (decoded: JwtPayload, data: emailVerifyTokenBodyType) => {
-  const { _id } = decoded
-  const { email_verify_token } = data
-  // Tìm user theo _id và kiểm tra email_verify_token
-  const user = await Users.findOne({ _id, email_verify_token })
-  if (!user) {
-    throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.USER_NOT_FOUND_OR_EMAIL_HAS_BEEN_VERIFIED,
-      statusCode: httpStatus.NOT_FOUND
-    })
-  }
-  // Kiểm tra email đã được verify chưa
-  if (user.isActive()) {
-    throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.USER_IS_VERIFIED,
-      statusCode: httpStatus.FORBIDDEN // Lỗi 403 là lỗi khi user đã được verify
-    })
-  }
-  // Update email_verified thành true
-  await Users.findByIdAndUpdate(user._id, {
-    email_verified: true,
-    email_verify_token: '',
-    updated_at: new Date()
-  })
-  return {
-    message: USER_MESSAGE.EMAIL_VERIFY_SUCCESSFULLY
   }
 }
 
@@ -432,47 +484,6 @@ export const adminUpdateUserProfileServices = async (data: adminUpdateUserProfil
   return {
     message: USER_MESSAGE.UPDATE_USER_PROFILE_SUCCESSFULLY,
     data: { ...data }
-  }
-}
-
-/**
- * Description: Resend Email Verify Token Sau khi user không nhận được email verify token
- * Req.body: email
- * Response: message
- *
- */
-
-export const resendEmailVerifyServices = async (data: resendEmailVerifyTokenBodyType) => {
-  const { email } = data
-  // Kiểm tra email có tồn tại không
-  const user = await Users.findOne({ email })
-  if (!user) {
-    throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.EMAIL_NOT_FOUND,
-      statusCode: httpStatus.NOT_FOUND
-    })
-  }
-  // Kiểm tra email đã được verify chưa
-  if (user.email_verified) {
-    throw new ErrorWithStatusCode({
-      message: USER_MESSAGE.USER_IS_VERIFIED,
-      statusCode: httpStatus.FORBIDDEN
-    })
-  }
-  // Tạo mới email verify token
-  const email_verify_token = await signToken({
-    payload: {
-      _id: user._id
-    },
-    secretKey: process.env.EMAIL_VERIFY_TOKEN as string,
-    expiresIn: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
-  })
-  // Update email_verify_token trong db
-  await Users.findByIdAndUpdate(user._id, {
-    email_verify_token
-  })
-  return {
-    message: USER_MESSAGE.RESEND_EMAIL_VERIFY_SUCCESSFULLY
   }
 }
 
