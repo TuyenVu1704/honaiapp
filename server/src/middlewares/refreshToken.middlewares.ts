@@ -19,6 +19,14 @@ export const refreshTokenBody = z
 // Kiểu của body kiểm tra refresh token
 export type refreshTokenBodyType = z.infer<typeof refreshTokenBody>
 
+export const refreshTokenPayloadSchema = z
+  .object({
+    _id: z.string()
+  })
+  .strict()
+
+export type refreshTokenPayloadType = z.infer<typeof refreshTokenPayloadSchema>
+
 // Middleware kiểm tra refresh token
 export const refreshTokenMiddleware = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
   const refresh_token = req.body as refreshTokenBodyType

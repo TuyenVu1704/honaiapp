@@ -6,6 +6,7 @@ import {
   getProfileUserController,
   loginUserController,
   logoutUserController,
+  refreshTokenController,
   registerUserController,
   resendEmailVerifyTokenController,
   verifyDeviceController,
@@ -56,7 +57,7 @@ router.get('/verify-email', emailVerifyTokenMiddleware, verifyEmailController)
  * Roles: Admin
  * */
 router.post(
-  '/admin/resend-email-verify-token',
+  '/resend-email-verify-token',
   accessTokenMiddleware,
   checkIsAdmin,
   adminResendEmailLimiter,
@@ -86,6 +87,16 @@ router.post(
  */
 
 router.get('/verify-device', emailVerifyDeviceTokenMiddleware, verifyDeviceController)
+
+/**
+ * Description: Refresh Token
+ * Method: POST
+ * Request: /users/refresh-token
+ * Request body: { refreshToken: string }
+ *
+ */
+
+router.post('/refresh-token', refreshTokenMiddleware, validate(refreshTokenBody), refreshTokenController)
 
 /**
  * Description: Get Me

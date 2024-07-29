@@ -9,7 +9,7 @@ const updateUsers = async () => {
   try {
     // update thêm key confirmToken vào tất cả các user
     // await Users.updateMany({}, { $set: { confirmToken: null } })
-    await Users.updateMany({}, { $unset: { cover: '' } })
+    await Users.updateMany({}, { $unset: { device: [] } })
     console.log('Update User successfully')
   } catch (error) {
     console.log('Update User failed')

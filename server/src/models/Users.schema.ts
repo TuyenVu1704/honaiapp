@@ -50,12 +50,12 @@ const UserSchema = new Schema<IUser>(
         type: String
       }
     ],
-    devices: [
-      {
-        device_id: String,
-        last_login: Date
-      }
-    ],
+    device_id: {
+      type: String
+    },
+    last_login: {
+      type: Date
+    },
     status: {
       type: String
     },

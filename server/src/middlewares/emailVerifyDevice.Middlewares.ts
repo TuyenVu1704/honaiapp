@@ -20,6 +20,7 @@ export type verifyDeviceQueryType = z.infer<typeof verifyDeviceQuery>
 export const emailVerifyDeviceTokenMiddleware = tryCatchHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { token } = req.query as verifyDeviceQueryType
+
     if (!token) {
       throw new ErrorWithStatusCode({
         message: USER_MESSAGE.EMAIL_VERIFY_TOKEN_IS_REQUIRED,
@@ -27,8 +28,9 @@ export const emailVerifyDeviceTokenMiddleware = tryCatchHandler(
       })
     }
     try {
-      const decoded = await verifyToken(token, process.env.VERIFICATION_TOKEN as string)
+      const decoded = await verifyToken(token, process.env.EMAIL_VERIFY_DEVICE_TOKEN as string)
       req.decoded_email_verify_token = decoded as jwt.JwtPayload
+
       next()
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {

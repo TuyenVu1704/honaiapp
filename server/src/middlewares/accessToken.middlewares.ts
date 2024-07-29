@@ -6,7 +6,16 @@ import { USER_MESSAGE } from '~/constants/messages'
 import tryCatchHandler from '~/utils/trycatchHandler'
 import { config } from 'dotenv'
 import { verifyToken } from '~/utils/jwt'
+import { z } from 'zod'
 config()
+
+export const accessTokenPayloadSchema = z.object({
+  _id: z.string(),
+  role: z.number(),
+  email_verified: z.boolean()
+})
+
+export type accessTokenPayloadType = z.infer<typeof accessTokenPayloadSchema>
 
 // Middleware kiểm tra accessToken
 export const accessTokenMiddleware = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
@@ -19,8 +28,9 @@ export const accessTokenMiddleware = tryCatchHandler(async (req: Request, res: R
     })
   }
   try {
-    const decoded = await verifyToken(accessToken, process.env.ACCESS_TOKEN_SECRET as string)
+    const decoded = await verifyToken(accessToken, process.env.ACCESS_TOKEN as string)
     req.user = decoded
+
     req.isAdmin = req.user.role === 0
     next()
   } catch (error) {

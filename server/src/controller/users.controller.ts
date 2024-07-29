@@ -9,6 +9,7 @@ import {
   getProfileUserService,
   loginServices,
   logoutServices,
+  refreshTokenServices,
   registerUserServices,
   resendEmailVerifyServices,
   verifyDeviceService,
@@ -35,9 +36,9 @@ export const registerUserController = tryCatchHandler(async (req: Request, res: 
  *
  */
 export const verifyEmailController = tryCatchHandler(async (req: Request, res: Response) => {
-  const { email_verify_token } = req.query as emailVerifyTokenQueryType
+  const { token } = req.query as emailVerifyTokenQueryType
   const { _id } = req.decoded_email_verify_token as JwtPayload
-  const result = await verifyEmailServices({ _id, email_verify_token })
+  const result = await verifyEmailServices({ _id, token })
   return res.json(result)
 })
 
@@ -46,9 +47,8 @@ export const verifyEmailController = tryCatchHandler(async (req: Request, res: R
  * Roles: Admin
  */
 export const resendEmailVerifyTokenController = tryCatchHandler(async (req: Request, res: Response) => {
-  const { _id } = req.user as JwtPayload // _id admin gửi request
   const { email } = req.body
-  const result = await resendEmailVerifyServices({ _id, email })
+  const result = await resendEmailVerifyServices({ email })
   return res.json(result)
 })
 
@@ -65,7 +65,18 @@ export const loginUserController = tryCatchHandler(async (req: Request, res: Res
  */
 export const verifyDeviceController = tryCatchHandler(async (req: Request, res: Response) => {
   const { _id, device_id } = req.decoded_email_verify_token as JwtPayload
+
   const result = await verifyDeviceService({ _id, device_id })
+  return res.json(result)
+})
+
+/**
+ * Description: Refresh Token
+ */
+export const refreshTokenController = tryCatchHandler(async (req: Request, res: Response) => {
+  const { _id } = req.decoded_refresh_token as JwtPayload
+  const { refresh_token } = req.body
+  const result = await refreshTokenServices({ _id, refresh_token })
   return res.json(result)
 })
 

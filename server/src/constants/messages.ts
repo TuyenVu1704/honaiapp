@@ -38,6 +38,7 @@ export const USER_MESSAGE = {
   REFRESH_TOKEN_IS_EXPIRED: 'Refresh token is expired',
   REFRESH_TOKEN_IN_BODY_IS_REQUIRED: 'Refresh token in body is required',
   REFRESH_TOKEN_USED_OR_NOT_IN_DATABASE: 'Refresh token is used or not in database',
+  REFRESH_TOKEN_SUCCESSFULLY: 'Refresh token successfully',
   EMAIL_VERIFY_TOKEN_IS_REQUIRED: 'Email verify token is required',
   EMAIL_VERIFY_TOKEN_IS_STRING: 'Email verify token must be a string',
   EMAIL_VERIFY_TOKEN_IN_BODY_IS_REQUIRED: 'Email verify token in body is required',
