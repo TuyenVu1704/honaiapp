@@ -7,10 +7,11 @@ import initRoutes from './routes'
 import { defaultErrorHandler } from './middlewares/error.middlewares'
 import { initFolder } from './utils/file'
 import { startRedis } from './config/connectRedis'
+import { redis } from './services/cache.services'
 
 config()
 connectDB()
-startRedis()
+redis.connectRedis()
 const app = express()
 app.use(cors())
 

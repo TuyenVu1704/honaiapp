@@ -1,9 +1,9 @@
 import mongoose from 'mongoose'
 import { Roles } from '~/constants/enum'
-import { IDevice } from './Devices'
 
 export interface IUser extends mongoose.Document {
-  MSNV: string
+  _id: string
+  employee_code: string
   username: string
   first_name: string
   last_name: string
@@ -22,14 +22,13 @@ export interface IUser extends mongoose.Document {
   avatar: string
   loginAttempts: number
   locked: boolean
-  devices: IDevice[]
   isLocked: () => boolean
 }
 
 const Schema = mongoose.Schema
 const UserSchema = new Schema<IUser>(
   {
-    MSNV: {
+    employee_code: {
       type: String,
       required: true,
       unique: true,
@@ -62,7 +61,7 @@ const UserSchema = new Schema<IUser>(
       index: true
     },
     phone: {
-      type: Number,
+      type: String,
       required: true,
       unique: true
     },
@@ -114,13 +113,7 @@ const UserSchema = new Schema<IUser>(
     locked: {
       type: Boolean,
       default: false
-    },
-    devices: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Devices'
-      }
-    ]
+    }
   },
 
   { timestamps: true }

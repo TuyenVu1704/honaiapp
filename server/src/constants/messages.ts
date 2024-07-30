@@ -2,7 +2,7 @@ export const USER_MESSAGE = {
   VALIDATTION_ERROR: 'Validation error',
 
   // Auth
-  REGISTER_SUCCESSFULLY: 'Register successfully',
+  REGISTER_USER_SUCCESSFULLY: 'Register user successfully',
   LOGIN_SUCCESSFULLY: 'Login successfully',
   LOGOUT_SUCCESSFULLY: 'Logout successfully',
   EMAIL_VERIFY_SUCCESSFULLY: 'Email verify successfully',

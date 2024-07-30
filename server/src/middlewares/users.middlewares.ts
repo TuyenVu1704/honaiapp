@@ -6,7 +6,7 @@ import { File } from 'buffer'
 // Register user body
 export const registerUserBody = z
   .object({
-    MSNV: z.string().min(5, { message: 'MSNV must be at least 5 characters' }).trim(),
+    employee_code: z.string().min(5, { message: 'employee_code must be at least 5 characters' }).trim(),
     username: z.string().min(2, { message: 'Username must be at least 5 characters' }).trim(),
     first_name: z.string().min(2, { message: 'First name must be at least 2 characters' }).trim(),
     last_name: z.string().min(2, { message: 'Last name must be at least 2 characters' }).trim(),
@@ -32,25 +32,32 @@ export const registerUserBody = z
 
 export type registerUserBodyType = z.infer<typeof registerUserBody>
 export const registerUserRes = z.object({
+  message: z.string(),
   data: z.object({
-    accessToken: z.string(),
-    refreshToken: z.string(),
     user: z.object({
-      _id: z.string(),
-      first_name: z.string(),
-      last_name: z.string(),
+      employee_code: z.string(),
+      full_name: z.string(),
+      username: z.string(),
       email: z.string(),
       phone: z.string(),
       role: z.string(),
-      permission: z.string(),
-      department: z.string(),
-      position: z.string()
+      permissions: z.array(z.string()),
+      department: z.array(z.string()),
+      position: z.array(z.string())
     })
-  }),
-  message: z.string()
+  })
 })
 
 export type registerUserResType = z.infer<typeof registerUserRes>
+
+// Resend email verify token body
+export const resendEmailVerifyTokenBody = z
+  .object({
+    email: z.string().email({ message: 'Invalid email address' })
+  })
+  .strict()
+
+export type resendEmailVerifyTokenBodyType = z.infer<typeof resendEmailVerifyTokenBody>
 
 // Login user body
 export const loginUserBody = z
@@ -163,15 +170,6 @@ export const adminUpdateUserProfileRes = z.object({
     user: z.object({})
   })
 })
-
-// Resend email verify token body
-export const resendEmailVerifyTokenBody = z
-  .object({
-    email: z.string().email({ message: 'Invalid email address' })
-  })
-  .strict()
-
-export type resendEmailVerifyTokenBodyType = z.infer<typeof resendEmailVerifyTokenBody>
 
 /**
  * Get All Users

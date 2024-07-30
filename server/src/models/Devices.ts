@@ -1,13 +1,13 @@
 import mongoose from 'mongoose'
 
-export interface IDevice {
-  user_id: mongoose.Schema.Types.ObjectId
+export interface IDevice extends mongoose.Document {
+  user_id?: string
   device_id: string
-  device_name: string
+  type: string
+  os: string
+  browser: string
   ip: string
-  last_login: Date
-  created_at: Date
-  updated_at: Date
+  last_login?: Date
 }
 
 const Schema = mongoose.Schema
@@ -15,14 +15,22 @@ const Schema = mongoose.Schema
 const DeviceSchema = new Schema<IDevice>(
   {
     user_id: {
-      type: Schema.Types.ObjectId,
-      ref: 'User'
+      type: String,
+      required: true
     },
     device_id: {
       type: String,
       required: true
     },
-    device_name: {
+    type: {
+      type: String,
+      required: true
+    },
+    os: {
+      type: String,
+      required: true
+    },
+    browser: {
       type: String,
       required: true
     },
@@ -30,19 +38,13 @@ const DeviceSchema = new Schema<IDevice>(
       type: String,
       required: true
     },
-    created_at: {
-      type: Date,
-      default: Date.now
-    },
-    updated_at: {
-      type: Date,
-      default: Date.now
-    },
     last_login: {
-      type: Date
+      type: Date,
+      required: true
     }
   },
   { timestamps: true }
 )
 
 const Devices = mongoose.model<IDevice>('Devices', DeviceSchema)
+export default Devices

@@ -1,10 +1,10 @@
 import { NextFunction, Request, Response } from 'express'
-import { ZodError } from 'zod'
+import { ZodError, ZodSchema } from 'zod'
 import { EntityError } from '~/config/errors'
 export const validate = (schema: any) => (req: Request, res: Response, next: NextFunction) => {
   try {
     // schema.parse(req.body) là cách để kiểm tra dữ liệu từ body của request
-    schema.parse(req.body, req.params, req.query)
+    schema.parse(req.body, req.params, req.query, ZodSchema)
     // Nếu không có lỗi thì chuyển tiếp cho middleware tiếp theo
     next()
   } catch (error) {
