@@ -12,7 +12,13 @@ import RefreshToken from '~/models/RefreshToken.schema'
 import Users from '~/models/Users.schema'
 import { capitalizeAfterSpace } from '~/utils/captalizeAfterSpace'
 import { comparePassword, hashPassword } from '~/utils/hashPassword'
-import { generateAccessToken, generateRefreshToken, signToken } from '~/utils/jwt'
+import {
+  generateAccessToken,
+  generateEmailVerifyDeviceToken,
+  generateEmailVerifyToken,
+  generateRefreshToken,
+  signToken
+} from '~/utils/jwt'
 import _ from 'lodash'
 import { randomPassword } from '~/utils/random'
 import { ObjectId } from 'mongodb'
@@ -24,34 +30,41 @@ import { checkUserExistence } from '~/utils/checkUserExitence'
  * Description: Đăng ký tài khoản mới
  * Req.body: first_name, last_name, email, phone, password
  * Response: message, data
- * Data: user: { _id, first_name, last_name, email }
+ * Data: user: { _id, first_name, last_name, email, phone, role, MSNV, username, password} }
  */
-export const registerUserServices = async (data: registerUserBodyType) => {
-  //Viết hoa chữ cái đầu của first_name và last_name
-  const [first_name, last_name] = await Promise.all([
-    capitalizeAfterSpace(data.first_name),
-    capitalizeAfterSpace(data.last_name)
+export const registerUserServices = async ({
+  first_name,
+  last_name,
+  full_name,
+  email,
+  phone,
+  password,
+  MSNV,
+  username
+}: registerUserBodyType) => {
+  //Viết hoa chữ cái đầu của first_name và last_name va full_name
+  const [firstname, lastname, fullname] = await Promise.all([
+    capitalizeAfterSpace(first_name),
+    capitalizeAfterSpace(last_name),
+    capitalizeAfterSpace(full_name)
   ])
   // Check email và phone đã tồn tại chưa
-  await checkUserExistence(data.email, data.phone)
-  await deleteCachedUser(data.email)
+  await checkUserExistence(email, phone)
+
+  // Xoá cache user
+  await deleteCachedUser(email)
+
   // Tao _id cho user
   const _id = new ObjectId()
-
   // Tạo email verify token
-  const email_verify_token = await signToken({
-    payload: {
-      _id: _id
-    },
-    secretKey: process.env.EMAIL_VERIFY_TOKEN as string,
-    expiresIn: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
+  const email_verify_token = await generateEmailVerifyToken({
+    _id: _id.toString()
   })
-
   // Tạo url verify email
   const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email?token=${email_verify_token}`
   // Gửi email verify token cho user
   await sendMail({
-    to: data.email,
+    to: email,
     subject: 'Verify Email',
     templateName: 'verifyEmail',
     dynamic_Field: {
@@ -60,28 +73,27 @@ export const registerUserServices = async (data: registerUserBodyType) => {
       expirationTime: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
     }
   })
-
-  const hashedPassword = data.password === '' ? await randomPassword(6) : await hashPassword(data.password)
+  const hashedPassword = password === '' ? await randomPassword(6) : await hashPassword(password as string)
   // Tạo user trong mongodb
   const user = new Users({
-    ...data,
     _id,
-    email_verify_token,
-    first_name,
-    last_name,
-    password: hashedPassword
+    first_name: firstname,
+    last_name: lastname,
+    full_name: fullname,
+    email,
+    phone,
+    password: hashedPassword,
+    email_verify_token
   })
   await user.save()
-
   return {
     message: USER_MESSAGE.REGISTER_SUCCESSFULLY,
-    // không show password ra ngoài
-    // đưa id lên trước
     data: {
       user: {
         _id: user._id,
-        first_name,
-        last_name,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        full_name: user.full_name,
         email: user.email
       }
     }
@@ -113,9 +125,14 @@ export const verifyEmailServices = async ({ _id, token }: { _id: string; token: 
     }
   }
   // Update email_verified thành true
-  user.email_verified = true
-  user.email_verify_token = ''
-  await user.save()
+  await Users.findByIdAndUpdate(
+    _id,
+    {
+      email_verified: true,
+      email_verify_token: ''
+    },
+    { new: true }
+  )
   return {
     message: USER_MESSAGE.EMAIL_VERIFY_SUCCESSFULLY
   }
@@ -144,14 +161,10 @@ export const resendEmailVerifyServices = async ({ email }: { email: string }) =>
     }
   }
   // Tạo mới email verify token
-  const email_verify_token = await signToken({
-    payload: {
-      _id: user._id
-    },
-    secretKey: process.env.EMAIL_VERIFY_TOKEN as string,
-    expiresIn: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
+  const email_verify_token = await generateEmailVerifyToken({
+    _id: user._id as string
   })
-  console.log(email_verify_token)
+
   // Tạo url verify email
   const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email?token=${email_verify_token}`
   // Gửi email verify token cho user
@@ -165,9 +178,15 @@ export const resendEmailVerifyServices = async ({ email }: { email: string }) =>
       expirationTime: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
     }
   })
-  // Update email_verify_token trong db
-  user.email_verify_token = email_verify_token
-  await user.save()
+  // Update email_verify_token trong db và trả về giá trị mới
+  await Users.findByIdAndUpdate(
+    user._id,
+    {
+      email_verify_token
+    },
+    { new: true }
+  )
+
   return {
     message: USER_MESSAGE.RESEND_EMAIL_VERIFY_SUCCESSFULLY
   }
@@ -235,18 +254,17 @@ export const loginServices = async (data: loginUserBodyType) => {
   // Reset loginAttempts về 0
   await updateLoginAttempts(email, 0)
 
-  // Kiểm tra đã đăng nhập từ thiết bị khác chưa
-  const deviceExist = user.device_id === device_id
-
-  if (!deviceExist) {
-    const verificationToken = await signToken({
-      payload: { _id: user._id, device_id },
-      secretKey: process.env.EMAIL_VERIFY_DEVICE_TOKEN as string,
-      expiresIn: process.env.EXPIRE_EMAIL_VERIFY_DEVICE_TOKEN as string
+  // Kiểm tra thiết bị đã tồn tại chưa
+  const deviceExist = user.devices.findIndex((device: any) => device.device_id === device_id)
+  // -1 là chưa tồn tại
+  if (deviceExist === -1) {
+    const emailVerifyDeviceToken = await generateEmailVerifyDeviceToken({
+      _id: user._id,
+      device_id
     })
-    console.log(verificationToken)
+    console.log(emailVerifyDeviceToken)
     // Tạo url verify device
-    const verificationUrl = `${process.env.CLIENT_URL}/verify-device?token=${verificationToken}`
+    const verificationUrl = `${process.env.CLIENT_URL}/verify-device?token=${emailVerifyDeviceToken}`
     // Gửi email verify device cho user
     await sendMail({
       to: user.email,
@@ -275,7 +293,7 @@ export const loginServices = async (data: loginUserBodyType) => {
     })
   ])
 
-  // Kiểm tra user_id đã có refresh token trong db chưa
+  // Kiểm tra user_id và device_id đã có refresh token chưa
   const refreshTokenExist = await RefreshToken.findOne({ user_id: user._id })
   // Nếu có thì update refresh token
   if (refreshTokenExist) {
@@ -311,6 +329,7 @@ export const loginServices = async (data: loginUserBodyType) => {
 /**
  * Description: Verify Device sau khi đăng nhập
  * Req.query: token
+ * Req.decoded_email_verify_device_token: _id, device_id
  * Response: message
  * @param data
  * @returns

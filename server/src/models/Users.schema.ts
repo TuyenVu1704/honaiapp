@@ -1,10 +1,46 @@
 import mongoose from 'mongoose'
 import { Roles } from '~/constants/enum'
-import { IUser } from '~/constants/type.schema'
+import { IDevice } from './Devices'
+
+export interface IUser extends mongoose.Document {
+  MSNV: string
+  username: string
+  first_name: string
+  last_name: string
+  full_name: string
+  email: string
+  phone: string
+  password: string
+  role: Roles
+  permissions: string[]
+  department: string[]
+  position: string[]
+  status: string
+  email_verify_token: string
+  email_verified: boolean
+  password_reseted_at: Date[]
+  avatar: string
+  loginAttempts: number
+  locked: boolean
+  devices: IDevice[]
+  isLocked: () => boolean
+}
 
 const Schema = mongoose.Schema
 const UserSchema = new Schema<IUser>(
   {
+    MSNV: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true
+    },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true
+    },
     first_name: {
       type: String,
       required: true,
@@ -14,6 +50,10 @@ const UserSchema = new Schema<IUser>(
       type: String,
       required: true,
       index: true
+    },
+    full_name: {
+      type: String,
+      required: true
     },
     email: {
       type: String,
@@ -50,12 +90,6 @@ const UserSchema = new Schema<IUser>(
         type: String
       }
     ],
-    device_id: {
-      type: String
-    },
-    last_login: {
-      type: Date
-    },
     status: {
       type: String
     },
@@ -67,16 +101,11 @@ const UserSchema = new Schema<IUser>(
       default: false
     },
 
-    reset_password_token: {
-      type: String,
-      default: ''
-    },
     password_reseted_at: [
       {
         type: Date
       }
     ],
-
     avatar: {
       type: String,
       default: ''
@@ -86,12 +115,14 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: false
     },
-
-    confirmToken: {
-      type: String,
-      default: null
-    }
+    devices: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Devices'
+      }
+    ]
   },
+
   { timestamps: true }
 )
 

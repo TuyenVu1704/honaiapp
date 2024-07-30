@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { JwtPayload } from 'jsonwebtoken'
 
-import { getAllUserQueryType, getUserParamsType } from '~/middlewares/users.middlewares'
+import { getAllUserQueryType, getUserParamsType, registerUserBodyType } from '~/middlewares/users.middlewares'
 import {
   adminUpdateUserProfileServices,
   getAllUsersServices,
@@ -27,7 +27,17 @@ config()
  * Description: Đăng ký tài khoản mới
  */
 export const registerUserController = tryCatchHandler(async (req: Request, res: Response) => {
-  const result = await registerUserServices(req.body)
+  const { first_name, last_name, full_name, email, phone, password, MSNV, username } = req.body as registerUserBodyType
+  const result = await registerUserServices({
+    first_name,
+    last_name,
+    full_name,
+    email,
+    phone,
+    password,
+    MSNV,
+    username
+  })
   return res.json(result)
 })
 
@@ -64,7 +74,7 @@ export const loginUserController = tryCatchHandler(async (req: Request, res: Res
  * Description: Verify Device sau khi đăng nhập
  */
 export const verifyDeviceController = tryCatchHandler(async (req: Request, res: Response) => {
-  const { _id, device_id } = req.decoded_email_verify_token as JwtPayload
+  const { _id, device_id } = req.decoded_email_verify_device_token as JwtPayload
 
   const result = await verifyDeviceService({ _id, device_id })
   return res.json(result)

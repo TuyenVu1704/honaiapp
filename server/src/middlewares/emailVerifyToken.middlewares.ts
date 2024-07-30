@@ -17,6 +17,14 @@ export const emailVerifyTokenQuery = z
 
 export type emailVerifyTokenQueryType = z.infer<typeof emailVerifyTokenQuery>
 
+export const emailVerifyTokenSchema = z
+  .object({
+    _id: z.string()
+  })
+  .strict()
+
+export type emailVerifyTokenSchemaType = z.infer<typeof emailVerifyTokenSchema>
+
 export const emailVerifyTokenMiddleware = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { token } = req.query as emailVerifyTokenQueryType
 

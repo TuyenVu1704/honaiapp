@@ -8,8 +8,9 @@ export const USER_MESSAGE = {
   EMAIL_VERIFY_SUCCESSFULLY: 'Email verify successfully',
 
   //Email
-  EMAIL_OR_PHONE_EXISTED: 'Email or phone number already exists',
+
   EMAIL_EXISTED: 'Email already exists',
+
   EMAIL_OR_PASSWORD_EXISTED: 'Email or password already exists',
   EMAIL_OR_PASSWORD_INCORRECT: 'Email or password is incorrect',
   EMAIL_NOT_FOUND: 'Email not found',
@@ -39,6 +40,9 @@ export const USER_MESSAGE = {
   REFRESH_TOKEN_IN_BODY_IS_REQUIRED: 'Refresh token in body is required',
   REFRESH_TOKEN_USED_OR_NOT_IN_DATABASE: 'Refresh token is used or not in database',
   REFRESH_TOKEN_SUCCESSFULLY: 'Refresh token successfully',
+  REFRESH_TOKEN_UPDATED: 'Refresh token updated',
+  REFRESH_TOKEN_ADDED_NEW_DEVICE: 'Refresh token added new device',
+  REFRESH_TOKEN_LIMIT_DEVICE: 'Refresh token limit device',
   EMAIL_VERIFY_TOKEN_IS_REQUIRED: 'Email verify token is required',
   EMAIL_VERIFY_TOKEN_IS_STRING: 'Email verify token must be a string',
   EMAIL_VERIFY_TOKEN_IN_BODY_IS_REQUIRED: 'Email verify token in body is required',
@@ -49,6 +53,7 @@ export const USER_MESSAGE = {
   EMAIL_VERIFY_DEVICE_TOKEN_INVALID_TOKEN: 'Email verify device token invalid token',
 
   // User
+  USERNAME_EXISTED: 'Username already exists',
   USER_NOT_FOUND: 'User not found',
   USER_IS_VERIFIED: 'User is verified',
   USER_IS_NOT_ADMIN: 'User is not admin',

@@ -6,6 +6,7 @@ declare module 'express' {
     decoded?: JwtPayloadoad
     decoded_refresh_token?: JwtPayload
     decoded_email_verify_token?: JwtPayload
+    decoded_email_verify_device_token?: JwtPayload
     isAdmin?: boolean
     isEmailVerified?: boolean
     files?: any
