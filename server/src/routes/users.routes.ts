@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import {
+  loginUserController,
   // adminUpdateUserProfileController,
   // getAllUsersController,
   // getMeController,
@@ -74,19 +75,14 @@ router.post(
   validate(resendEmailVerifyTokenBody),
   resendEmailVerifyTokenController
 )
-// /**
-//  * Description: Đăng nhập tài khoản
-//  * Method: POST
-//  * Request: /users/login
-//  * Request body
-//  *
-//  */
-// router.post(
-//   '/login',
-//   validate(loginUserBody),
-//   filterReqMiddleware<loginUserBodyType>(['email', 'password', 'device_id']),
-//   loginUserController
-// )
+/**
+ * Description: Đăng nhập tài khoản
+ * Method: POST
+ * Request: /users/login
+ * Request body
+ *
+ */
+router.post('/login', validate(loginUserBody), loginUserController)
 
 // /**
 //  * Description: Verify Device sau khi đăng nhập

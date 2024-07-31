@@ -19,7 +19,7 @@ export type emailVerifyTokenQueryType = z.infer<typeof emailVerifyTokenQuery>
 
 export const emailVerifyTokenSchema = z
   .object({
-    _id: z.string()
+    username: z.string()
   })
   .strict()
 

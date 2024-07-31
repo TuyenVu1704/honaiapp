@@ -1,8 +1,8 @@
 import mongoose from 'mongoose'
-import { IDevice } from 'ua-parser-js'
+import { IDevice } from './Devices.schema'
 
-export interface IRefreshToken extends mongoose.Document {
-  user_id: string
+export interface IRefreshToken {
+  user_id: mongoose.Schema.Types.ObjectId
   devices: IRefreshTokenDevice[]
 }
 
@@ -16,20 +16,21 @@ const Schema = mongoose.Schema
 const RefreshTokenSchema = new Schema<IRefreshToken>(
   {
     user_id: {
-      type: String,
-      required: true
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true
     },
     devices: [
       {
         device: {
-          type: Object,
+          type: Schema.Types.ObjectId,
+          ref: 'User.devices',
           required: true
         },
         refresh_token: {
           type: String,
-          required: true,
-          unique: true,
-          index: true
+          required: true
         }
       }
     ]

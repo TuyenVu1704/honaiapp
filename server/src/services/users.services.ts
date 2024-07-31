@@ -1,5 +1,4 @@
 import { config } from 'dotenv'
-import { ObjectId } from 'mongodb'
 import bcrypt from 'bcryptjs'
 import { ErrorWithStatusCode } from '~/config/errors'
 import httpStatus from '~/constants/httpStatus'
@@ -17,10 +16,10 @@ import { accessTokenPayloadSchema, accessTokenPayloadType } from '~/middlewares/
 import { refreshTokenPayloadSchema, refreshTokenPayloadType } from '~/middlewares/refreshToken.middlewares'
 import { sendMail } from '~/config/mailConfig'
 import e, { Request } from 'express'
-import Devices, { IDevice } from '~/models/Devices'
 import { UAParser } from 'ua-parser-js'
 import { capitalizeAfterSpace } from '~/utils/capitalizeAfterSpace'
 import { convertoIPv4 } from '~/utils/ipConverter'
+import { IDevice } from '~/models/Devices.schema'
 
 config()
 class UserService {
@@ -35,16 +34,16 @@ class UserService {
     const cacheKey = this.getCacheKey(identifier)
     const cachedUser = await redis.get(cacheKey)
     if (cachedUser) {
-      console.log('Get User Cache', cachedUser)
-      return cachedUser
+      console.log('Get User Cache')
+      return JSON.parse(cachedUser)
     }
 
     // Nếu không có trong cache thì lấy từ db
     const user = await Users.findOne({ $or: [{ email: identifier }, { phone: identifier }, { username: identifier }] })
     if (user) {
-      await redis.set(cacheKey, JSON.parse(user.toObject()), { EX: 3600 })
+      await redis.set(cacheKey, JSON.stringify(user), { EX: 3600 })
     }
-    console.log('Get User DB', user)
+    console.log('Get User DB')
     return user
   }
 
@@ -52,15 +51,15 @@ class UserService {
   private updateUserCache = async (user_id: string, updateUser: IUser) => {
     const user = await Users.findByIdAndUpdate(user_id, updateUser, { new: true })
     if (user) {
-      await redis.set(this.getCacheKey(user.email), JSON.parse(user.toObject()), { EX: 3600 })
+      await redis.set(this.getCacheKey(user.email), JSON.stringify(user), { EX: 3600 })
       if (user.phone) {
-        await redis.set(this.getCacheKey(user.phone), JSON.parse(user.toObject()), { EX: 3600 })
+        await redis.set(this.getCacheKey(user.phone), JSON.stringify(user), { EX: 3600 })
       }
       if (user.username) {
-        await redis.set(this.getCacheKey(user.username), JSON.parse(user.toObject()), { EX: 3600 })
+        await redis.set(this.getCacheKey(user.username), JSON.stringify(user), { EX: 3600 })
       }
     }
-    console.log('Update cache User', user)
+    console.log('Update cache User')
     return user
   }
   public async deleteUserCache(identifier: string) {
@@ -79,8 +78,7 @@ class UserService {
   // Hàm update số lần đăng nhập thất bại
   public updateLoginAttempts = async (email: string, loginAttempts: number) => {
     const cacheKey = `loginAttempts:${email}`
-    await redis.set(cacheKey, loginAttempts, { EX: 3600
-    })
+    await redis.set(cacheKey, loginAttempts, { EX: 3600 })
   }
 
   // Hàm tạo mật khẩu ngẫu nhiên
@@ -106,7 +104,7 @@ class UserService {
   // Hàm lấy thông tin thiết bị trên req
   public getDeviceInfo = async (req: Request): Promise<IDevice> => {
     const ua = new UAParser(req.headers['user-agent'])
-    const device_id = ua.getDevice().model || 'unknown'
+    const device_id = Math.random().toString(36).substring(7)
     const type = ua.getDevice().type || 'unknown'
     const os = ua.getOS().name || 'unknown'
     const browser = ua.getBrowser().name || 'unknown'
@@ -119,10 +117,8 @@ class UserService {
       os,
       browser,
       ip
-    }
+    } as IDevice
   }
-
-  
 
   // Kiểm tra xem tài khoản có tồn tại không
   private async checkUserExistence(email: string, phone: string, username: string) {
@@ -191,15 +187,6 @@ class UserService {
     })
   }
 
-  // Tạo access token và refresh token
-  private async generateAccessTokenAndRefreshToken(payload: accessTokenPayloadType) {
-    const [accessToken, refreshToken] = await Promise.all([
-      this.generateAccessToken(payload),
-      this.generateRefreshToken({ _id: payload._id })
-    ])
-    return [accessToken, refreshToken]
-  }
-
   private constructor() {}
   static getInstance(): UserService {
     if (!UserService.instance) {
@@ -234,11 +221,9 @@ class UserService {
     // Xoá cache user
     await this.deleteUserCache(email)
 
-    // Tao _id cho user
-    const _id = new ObjectId()
     // Tạo email verify token
     const email_verify_token = await this.generateEmailVerifyToken({
-      _id: _id.toString()
+      username
     })
     // Tạo url verify email
     const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email?token=${email_verify_token}`
@@ -256,7 +241,6 @@ class UserService {
     const hashedPassword = password === '' ? await this.randomPassword(6) : await this.hashPassword(password as string)
     // Tạo user trong mongodb
     const user = await Users.create({
-      _id: _id,
       first_name: firstName,
       last_name: lastName,
       full_name: fullName,
@@ -293,9 +277,9 @@ class UserService {
    * req.decoded_email_verify_token: _id
    * Response: message
    */
-  async verifyEmail({ _id, token, deviceInfo }: { _id: string; token: string; deviceInfo: IDevice }) {
+  async verifyEmail({ email, token, deviceInfo }: { email: string; token: string; deviceInfo: IDevice }) {
     // Tìm user theo _id và kiểm tra email_verify_token
-    const user = await Users.findOne({ _id, email_verify_token: token })
+    const user = await Users.findOne({ email, email_verify_token: token })
     // Nếu không tìm thấy user thì trả về lỗi
     if (!user) {
       throw new ErrorWithStatusCode({
@@ -309,25 +293,23 @@ class UserService {
         message: USER_MESSAGE.USER_IS_VERIFIED
       }
     }
+
     // Update email_verified thành true
-    await Users.findByIdAndUpdate(
-      _id,
+    await Users.findOneAndUpdate(
+      { email },
       {
         email_verified: true,
-        email_verify_token: ''
+        email_verify_token: '',
+        devices: [deviceInfo]
       },
       { new: true }
     )
-    // Update device và last_login
-    await Devices.create({
-      user_id: _id,
-      device_id: deviceInfo.device_id,
-      type: deviceInfo.type,
-      os: deviceInfo.os,
-      browser: deviceInfo.browser,
-      ip: deviceInfo.ip,
-      last_login: new Date()
-    })
+    // Xoá cache user
+    await this.deleteUserCache(user.email)
+
+    // Update cache user
+    const cache = await this.getUserByIdentifierCache(user.email)
+
     return {
       message: USER_MESSAGE.EMAIL_VERIFY_SUCCESSFULLY
     }
@@ -339,7 +321,7 @@ class UserService {
    * Response: message
    */
 
-  async resendEmailVerifyServices({ email }: { email: string }) {
+  async resendEmailVerifyEmail({ email }: { email: string }) {
     // Kiểm tra email có tồn tại không
     const user = await Users.findOne({ email })
     if (!user) {
@@ -354,13 +336,12 @@ class UserService {
         message: USER_MESSAGE.USER_IS_VERIFIED
       }
     }
-    
 
     // Tạo mới email verify token
     const email_verify_token = await this.generateEmailVerifyToken({
-      _id: user._id.toString()
+      username: user.username
     })
-    console.log(email_verify_token)
+
     // Tạo url verify email
     const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email?token=${email_verify_token}`
     // Gửi email verify token cho user
@@ -395,26 +376,101 @@ class UserService {
    * Response: message, data { accessToken, refreshToken }
    */
 
-  async loginUser ({ email, password, device_id }: { email: string; password: string; device_id: string }) {
+  async loginUser({ email, password, device_id }: { email: string; password: string; device_id: string }) {
     // Kiểm tra user trong cache có tồn tại không
     const user = await this.getUserByIdentifierCache(email)
+
     // Nếu không có trong cache thì kiểm tra trong db
     if (!user) {
       const userDB = await Users.findOne({ email })
       if (userDB) {
         // Nếu có trong db thì lưu vào cache
-        await this.updateUserCache((userDB._id as string ).toString(), userDB)
-      }else {
+        await this.updateUserCache((userDB._id as string).toString(), userDB)
+      } else {
         throw new ErrorWithStatusCode({
           message: USER_MESSAGE.EMAIL_OR_PASSWORD_INCORRECT,
           statusCode: httpStatus.BAD_REQUEST
         })
       }
-
     }
-   // Kiểm tra số lần đăng nhập thất bại
 
+    // Kiểm tra số lần đăng nhập thất bại
+    const loginAttempts = await this.getLoginAttempts(email)
+    if (loginAttempts >= 5) {
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.ACCOUNT_LOCKED,
+        statusCode: httpStatus.LOCKED
+      })
+    }
 
+    // Kiểm tra password
+    const isMatch = await this.comparePassword(password, user.password)
+    // Nếu password không đúng thì tăng loginAttempts lên 1 và kiểm tra xem có đạt mức tối đa chưa
+    if (!isMatch) {
+      const newAttempts = loginAttempts + 1
+      await this.updateLoginAttempts(email, newAttempts)
+      if (newAttempts >= 5) {
+        await Users.findByIdAndUpdate(user._id, { locked: true })
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.ACCOUNT_LOCKED,
+          statusCode: httpStatus.LOCKED
+        })
+      }
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.ACCOUNT_WILL_BE_LOCKED + ` ${5 - newAttempts} times`,
+        statusCode: httpStatus.BAD_REQUEST
+      })
+    }
+
+    // Reset loginAttempts về 0
+    await this.updateLoginAttempts(email, 0)
+
+    // Kiểm tra thiết bị đã tồn tại chưa
+    const deviceExist = user.devices.findIndex((device: any) => device.device_id === device_id)
+
+    // -1 là chưa tồn tại
+    if (deviceExist === -1) {
+      const emailVerifyDeviceToken = await this.generateEmailVerifyDeviceToken({
+        _id: user._id,
+        device_id
+      })
+
+      await Users.findByIdAndUpdate(user._id, {
+        email_verify_device_token: emailVerifyDeviceToken
+      })
+
+      // Tạo url verify device
+      const verificationUrl = `${process.env.CLIENT_URL}/verify-device?token=${emailVerifyDeviceToken}`
+      // Gửi email verify device cho user
+      await sendMail({
+        to: user.email,
+        subject: 'Verify Device',
+        templateName: 'verifyDevice',
+        dynamic_Field: {
+          name: user.first_name,
+          verificationUrl,
+          expirationTime: process.env.EXPIRE_EMAIL_VERIFY_DEVICE_TOKEN as string
+        }
+      })
+      return {
+        message: USER_MESSAGE.VERIFY_DEVICE_SENT
+      }
+    }
+
+    // Neu device da ton tai
+    // Ký JWT
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.generateAccessToken({
+        _id: user._id,
+        role: user.role,
+        email_verified: user.email_verified
+      }),
+      this.generateRefreshToken({
+        _id: user._id
+      })
+    ])
+  }
   // export const loginServices = async (data: loginUserBodyType) => {
   //   const { email, password, device_id } = data
 

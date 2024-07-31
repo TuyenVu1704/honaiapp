@@ -1,7 +1,11 @@
 import { Request, Response } from 'express'
 import { JwtPayload } from 'jsonwebtoken'
 import { emailVerifyTokenQueryType } from '~/middlewares/emailVerifyToken.middlewares'
-import { registerUserBodyType, resendEmailVerifyTokenBodyType } from '~/middlewares/users.middlewares'
+import {
+  loginUserBodyType,
+  registerUserBodyType,
+  resendEmailVerifyTokenBodyType
+} from '~/middlewares/users.middlewares'
 import { userService } from '~/services/users.services'
 import tryCatchHandler from '~/utils/trycatchHandler'
 
@@ -53,10 +57,9 @@ export const registerUserController = tryCatchHandler(async (req: Request, res: 
  */
 export const verifyEmailController = tryCatchHandler(async (req: Request, res: Response) => {
   const { token } = req.query as emailVerifyTokenQueryType
-  const { _id } = req.decoded_email_verify_token as JwtPayload
+  const { email } = req.decoded_email_verify_token as JwtPayload
   const deviceInfo = await userService.getDeviceInfo(req)
-  console.log(deviceInfo)
-  const result = await userService.verifyEmail({ _id, token, deviceInfo })
+  const result = await userService.verifyEmail({ email, token, deviceInfo })
   return res.json(result)
 })
 
@@ -66,17 +69,18 @@ export const verifyEmailController = tryCatchHandler(async (req: Request, res: R
  */
 export const resendEmailVerifyTokenController = tryCatchHandler(async (req: Request, res: Response) => {
   const { email } = req.body as resendEmailVerifyTokenBodyType
-  const result = await userService.resendEmailVerifyServices({ email })
+  const result = await userService.resendEmailVerifyEmail({ email })
   return res.json(result)
 })
 
-// /**
-//  * Description: Đăng nhập tài khoản
-//  */
-// export const loginUserController = tryCatchHandler(async (req: Request, res: Response) => {
-//   const result = await loginServices(req.body)
-//   return res.json(result)
-// })
+/**
+ * Description: Đăng nhập tài khoản
+ */
+export const loginUserController = tryCatchHandler(async (req: Request, res: Response) => {
+  const { email, password, device_id } = req.body as loginUserBodyType
+  const result = await userService.loginUser({ email, password, device_id })
+  return res.json(result)
+})
 
 // /**
 //  * Description: Verify Device sau khi đăng nhập
