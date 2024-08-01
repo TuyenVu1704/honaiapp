@@ -1,6 +1,5 @@
 import mongoose from 'mongoose'
 import { Roles } from '~/constants/enum'
-import { DeviceSchema, IDevice } from './Devices.schema'
 
 export interface IUser extends mongoose.Document {
   _id: string
@@ -25,7 +24,6 @@ export interface IUser extends mongoose.Document {
   loginAttempts: number
   locked: boolean
   isLocked: () => boolean
-  devices: IDevice[]
 }
 
 const Schema = mongoose.Schema
@@ -119,17 +117,11 @@ const UserSchema = new Schema<IUser>(
     locked: {
       type: Boolean,
       default: false
-    },
-    devices: [DeviceSchema]
+    }
   },
 
   { timestamps: true }
 )
-
-// Kiểm tra xem tài khoản có đang bị khóa không
-UserSchema.methods.isLocked = function () {
-  return this.locked
-}
 
 const Users = mongoose.model('Users', UserSchema)
 

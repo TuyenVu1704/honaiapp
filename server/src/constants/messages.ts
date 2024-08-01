@@ -10,7 +10,6 @@ export const USER_MESSAGE = {
   //Email
 
   EMAIL_EXISTED: 'Email already exists',
-
   EMAIL_OR_PASSWORD_EXISTED: 'Email or password already exists',
   EMAIL_OR_PASSWORD_INCORRECT: 'Email or password is incorrect',
   EMAIL_NOT_FOUND: 'Email not found',
@@ -19,6 +18,7 @@ export const USER_MESSAGE = {
   VERIFY_DEVICE_SUCCESSFULLY: 'Verify device successfully',
   EMAIL_SENT_SUCCESSFULLY: 'Email sent successfully',
   EMAIL_SENT_FAILED: 'Email sent failed',
+  EMAIL_NOT_FOUND_OR_ALREADY_VERIFIED: 'Email not found or already verified',
 
   //Phone
   PHONE_EXISTED: 'Phone number already exists',
@@ -66,5 +66,8 @@ export const USER_MESSAGE = {
 
   //Update
   UPDATE_USER_PROFILE_SUCCESSFULLY: 'Update user profile successfully',
-  UPDATE_AVATAR_SUCCESSFULLY: 'Update avatar successfully'
+  UPDATE_AVATAR_SUCCESSFULLY: 'Update avatar successfully',
+
+  //Device
+  DEVICE_UPDATE_FAILED: 'Device update failed'
 } as const

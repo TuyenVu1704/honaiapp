@@ -57,9 +57,10 @@ export const registerUserController = tryCatchHandler(async (req: Request, res: 
  */
 export const verifyEmailController = tryCatchHandler(async (req: Request, res: Response) => {
   const { token } = req.query as emailVerifyTokenQueryType
-  const { email } = req.decoded_email_verify_token as JwtPayload
+  const { username } = req.decoded_email_verify_token as JwtPayload
+
   const deviceInfo = await userService.getDeviceInfo(req)
-  const result = await userService.verifyEmail({ email, token, deviceInfo })
+  const result = await userService.verifyEmail({ username, token, deviceInfo })
   return res.json(result)
 })
 

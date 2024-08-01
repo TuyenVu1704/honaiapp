@@ -1,5 +1,7 @@
 import mongoose from 'mongoose'
+
 export interface IDevice {
+  user_id: mongoose.Types.ObjectId
   device_id: string
   type: string
   os: string
@@ -8,31 +10,28 @@ export interface IDevice {
   last_login?: Date
 }
 
-const Schema = mongoose.Schema
+const DeviceSchema = new mongoose.Schema<IDevice>(
+  {
+    user_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Users',
+      required: true
+    },
+    device_id: {
+      type: String,
+      required: true,
+      unique: true
+    },
+    type: String,
+    os: String,
+    browser: String,
+    ip: String,
+    last_login: Date
+  },
+  { timestamps: true }
+)
 
-export const DeviceSchema = new Schema<IDevice>({
-  device_id: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  type: {
-    type: String,
-    required: true
-  },
-  os: {
-    type: String,
-    required: true
-  },
-  browser: {
-    type: String,
-    required: true
-  },
-  ip: {
-    type: String,
-    required: true
-  },
-  last_login: {
-    type: Date
-  }
-})
+DeviceSchema.index({ user: 1, device_id: 1 }, { unique: true })
+
+const Device = mongoose.model<IDevice>('Device', DeviceSchema)
+export default Device

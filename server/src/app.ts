@@ -6,12 +6,11 @@ import connectDB from './config/connectDB'
 import initRoutes from './routes'
 import { defaultErrorHandler } from './middlewares/error.middlewares'
 import { initFolder } from './utils/file'
-import { startRedis } from './config/connectRedis'
-import { redis } from './services/cache.services'
+import { startRedis } from './services/redis.services'
 
 config()
 connectDB()
-redis.connectRedis()
+startRedis()
 const app = express()
 app.use(cors())
 

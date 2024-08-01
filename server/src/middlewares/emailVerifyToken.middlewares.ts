@@ -36,6 +36,7 @@ export const emailVerifyTokenMiddleware = tryCatchHandler(async (req: Request, r
   }
   try {
     const decoded = await verifyToken(token, process.env.EMAIL_VERIFY_TOKEN as string)
+
     req.decoded_email_verify_token = decoded as JwtPayload
 
     next()
