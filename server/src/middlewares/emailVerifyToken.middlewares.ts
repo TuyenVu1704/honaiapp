@@ -9,13 +9,13 @@ import tryCatchHandler from '~/utils/trycatchHandler'
 import { verifyToken } from '~/utils/jwt'
 config()
 // Email Verify Token Query
-export const emailVerifyTokenQuery = z
+export const emailVerifyTokenParams = z
   .object({
     token: z.string()
   })
   .strict()
 
-export type emailVerifyTokenQueryType = z.infer<typeof emailVerifyTokenQuery>
+export type emailVerifyTokenParamsType = z.infer<typeof emailVerifyTokenParams>
 
 export const emailVerifyTokenSchema = z
   .object({
@@ -26,7 +26,7 @@ export const emailVerifyTokenSchema = z
 export type emailVerifyTokenSchemaType = z.infer<typeof emailVerifyTokenSchema>
 
 export const emailVerifyTokenMiddleware = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const { token } = req.query as emailVerifyTokenQueryType
+  const { token } = req.params as emailVerifyTokenParamsType
 
   if (!token) {
     throw new ErrorWithStatusCode({

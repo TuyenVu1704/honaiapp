@@ -1,19 +1,10 @@
 import { Router } from 'express'
 import {
   loginUserController,
-  // adminUpdateUserProfileController,
-  // getAllUsersController,
-  // getMeController,
-  // getProfileUserController,
-  // loginUserController,
-  // logoutUserController,
-  // refreshTokenController,
   registerUserController,
   resendEmailVerifyTokenController,
+  verifyDeviceController,
   verifyEmailController
-  // resendEmailVerifyTokenController,
-  // verifyDeviceController,
-  // verifyEmailController
 } from '~/controller/users.controller'
 import { accessTokenMiddleware, checkIsAdmin, checkIsEmailVerified } from '~/middlewares/accessToken.middlewares'
 import { emailVerifyDeviceTokenMiddleware } from '~/middlewares/emailVerifyDevice.Middlewares'
@@ -52,19 +43,19 @@ router.post(
  * Description: Verify Email sau khi đăng ký tài khoản thành công
  * Method: GET
  * Request: /users/verify-email
- * Request query: { email_verify_token: string }
+ * Request Params: { token: string }
  * req.decoded_email_verify_token = _id
  * deviceInfo = getDeviceInfo(req)
  *
  */
 
-router.get('/verify-email', emailVerifyTokenMiddleware, verifyEmailController)
+router.get('/verify-email/:token', emailVerifyTokenMiddleware, verifyEmailController)
 
 /**
  * Description: Resend Email Verify Token Sau khi user không nhận được email verify token
  * Method: POST
  * Request: /users/resend-email-verify-token
- * Request body: {}
+ * Request body: {username: string}
  * Roles: Admin
  * */
 router.post(
@@ -84,54 +75,54 @@ router.post(
  */
 router.post('/login', validate(loginUserBody), loginUserController)
 
-// /**
-//  * Description: Verify Device sau khi đăng nhập
-//  * Method: GET
-//  * Request: /users/verify-device
-//  * Request Query: { token: string }
-//  *
-//  */
+/**
+ * Description: Verify Device sau khi đăng nhập
+ * Method: GET
+ * Request: /users/verify-device
+ * Request Params: { token: string }
+ *
+ */
 
-// router.get('/verify-device', emailVerifyDeviceTokenMiddleware, verifyDeviceController)
+router.get('/verify-device/:token', emailVerifyDeviceTokenMiddleware, verifyDeviceController)
 
-// /**
-//  * Description: Refresh Token
-//  * Method: POST
-//  * Request: /users/refresh-token
-//  * Request body: { refreshToken: string }
-//  *
-//  */
+// // /**
+// //  * Description: Refresh Token
+// //  * Method: POST
+// //  * Request: /users/refresh-token
+// //  * Request body: { refreshToken: string }
+// //  *
+// //  */
 
-// router.post('/refresh-token', refreshTokenMiddleware, validate(refreshTokenBody), refreshTokenController)
+// // router.post('/refresh-token', refreshTokenMiddleware, validate(refreshTokenBody), refreshTokenController)
 
-// /**
-//  * Description: Get Me
-//  * Method: GET
-//  * Request: /users/me
-//  * Request Header: Authorization
-//  *
-//  */
+// // /**
+// //  * Description: Get Me
+// //  * Method: GET
+// //  * Request: /users/me
+// //  * Request Header: Authorization
+// //  *
+// //  */
 
-// router.get('/me', accessTokenMiddleware, checkIsEmailVerified, getMeController)
+// // router.get('/me', accessTokenMiddleware, checkIsEmailVerified, getMeController)
 
-// /**
-//  * Description: Get Profile User
-//  * Method: GET
-//  * Request: /users/profile/:id
-//  * Request Header: Authorization
-//  * Roles: Admin
-//  *
-//  */
+// // /**
+// //  * Description: Get Profile User
+// //  * Method: GET
+// //  * Request: /users/profile/:id
+// //  * Request Header: Authorization
+// //  * Roles: Admin
+// //  *
+// //  */
 
-// router.get('/profile/:id', accessTokenMiddleware, checkIsAdmin, getProfileUserController)
+// // router.get('/profile/:id', accessTokenMiddleware, checkIsAdmin, getProfileUserController)
 
-// /**
-//  * Description: Admin câp nhật thông tin user
-//  * Method: PATCH
-//  * Request: /users/update-profile/:id
-//  * Request Header: Authorization
-//  * Roles: Admin
-//  */
+// // /**
+// //  * Description: Admin câp nhật thông tin user
+// //  * Method: PATCH
+// //  * Request: /users/update-profile/:id
+// //  * Request Header: Authorization
+// //  * Roles: Admin
+// //  */
 
 // router.patch(
 //   '/update-profile/:id',

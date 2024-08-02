@@ -10,7 +10,7 @@ import { z } from 'zod'
 config()
 
 export const accessTokenPayloadSchema = z.object({
-  _id: z.string(),
+  id: z.string(),
   role: z.number(),
   email_verified: z.boolean()
 })

@@ -9,17 +9,17 @@ import tryCatchHandler from '~/utils/trycatchHandler'
 import { config } from 'dotenv'
 config()
 // Verify Device Query
-export const emailVerifyDeviceTokenQuery = z
+export const emailVerifyDeviceTokenParams = z
   .object({
     token: z.string()
   })
   .strict()
 
-export type emailVerifyDeviceTokenQueryType = z.infer<typeof emailVerifyDeviceTokenQuery>
+export type emailVerifyDeviceTokenParamsType = z.infer<typeof emailVerifyDeviceTokenParams>
 
 export const emailVerifyDeviceTokenSchema = z
   .object({
-    _id: z.string(),
+    id: z.string(),
     device_id: z.string()
   })
   .strict()
@@ -28,7 +28,7 @@ export type emailVerifyDeviceTokenSchemaType = z.infer<typeof emailVerifyDeviceT
 
 export const emailVerifyDeviceTokenMiddleware = tryCatchHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { token } = req.query as emailVerifyDeviceTokenQueryType
+    const { token } = req.params as emailVerifyDeviceTokenParamsType
 
     if (!token) {
       throw new ErrorWithStatusCode({
@@ -38,6 +38,7 @@ export const emailVerifyDeviceTokenMiddleware = tryCatchHandler(
     }
     try {
       const decoded = await verifyToken(token, process.env.EMAIL_VERIFY_DEVICE_TOKEN as string)
+
       req.decoded_email_verify_device_token = decoded as jwt.JwtPayload
 
       next()

@@ -26,6 +26,7 @@ export const USER_MESSAGE = {
   // Account
   ACCOUNT_LOCKED: 'Account is locked',
   ACCOUNT_WILL_BE_LOCKED: 'Account will be locked',
+  EMPLOYEE_CODE_EXISTED: 'Employee code already exists',
 
   //Token
   INVALID_TOKEN: 'Invalid token',
@@ -63,11 +64,15 @@ export const USER_MESSAGE = {
   GET_ALL_USERS_FAILED: 'Get all users failed',
   UPDATE_PROFILE_SUCCESSFULLY: 'Update profile successfully',
   GET_PROFILE_SUCCESSFULLY: 'Get profile successfully',
+  YOU_HAVE_ATTEMPTS_TO_LOGIN: 'You have {attempts} attempts to login',
 
   //Update
   UPDATE_USER_PROFILE_SUCCESSFULLY: 'Update user profile successfully',
   UPDATE_AVATAR_SUCCESSFULLY: 'Update avatar successfully',
 
   //Device
-  DEVICE_UPDATE_FAILED: 'Device update failed'
+  DEVICE_UPDATE_FAILED: 'Device update failed',
+  DEVICE_LIMIT: 'Device limit',
+  TOO_MANY_DEVICES: 'Too many devices',
+  INVALID_DATA: 'Invalid data'
 } as const

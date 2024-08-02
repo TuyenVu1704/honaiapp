@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import { ErrorWithStatusCode } from '~/config/errors'
 import httpStatus from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/messages'
-import { registerUserBodyType, registerUserResType } from '~/middlewares/users.middlewares'
+import { loginUserResType, registerUserBodyType, registerUserResType } from '~/middlewares/users.middlewares'
 import Users, { IUser } from '~/models/Users.schema'
 import { signToken } from '~/utils/jwt'
 import { emailVerifyTokenSchema, emailVerifyTokenSchemaType } from '~/middlewares/emailVerifyToken.middlewares'
@@ -20,105 +20,20 @@ import { capitalizeAfterSpace } from '~/utils/capitalizeAfterSpace'
 import { convertoIPv4 } from '~/utils/ipConverter'
 import Device, { IDevice } from '~/models/Devices.schema'
 import RefreshToken from '~/models/RefreshToken.schema'
-import cacheService from './redis.services'
-
+import { databaseService } from './Database.service'
+import ms from 'ms'
 config()
 class UserService {
   private static instance: UserService
 
-  // Tạo cache User
-  private async cacheUserData(user: IUser) {
-    const cacheKey = `user:${user.email}`
-    await cacheService.set(cacheKey, JSON.stringify(user), 30 * 24 * 60 * 60) // 30 ngày
-  }
-
-  // Update User cache
-  public async updateUserDataCache(user: IUser) {
-    const cacheKey = `user:${user.email}`
-    await cacheService.set(cacheKey, JSON.stringify(user), 30 * 24 * 60 * 60) // 30 ngày
-  }
-
-  // Lấy cache User
-  private async getCachedUserData(_id: string) {
-    const cacheKey = `user:${_id}`
-    const user = await cacheService.get(cacheKey)
-    return user ? JSON.parse(user) : null
-  }
-
-  // Hàm lấy thông tin user từ cache hoặc db
-  public async getUserByIdCacheAndDB(user_id: string) {
-    // Kiểm tra user trong cache có tồn tại không
-    const cacheUser = await this.getCachedUserData(user_id)
-
-    if (cacheUser) {
-      console.log('Get User Cache')
-      return cacheUser
-    }
-
-    const user = await Users.findById(user_id)
-    if (!user) {
+  // Hàm kiểm tra user có bị lock không
+  private async checkUserLock(user: IUser) {
+    if (user.locked) {
       throw new ErrorWithStatusCode({
-        message: USER_MESSAGE.USER_NOT_FOUND,
-        statusCode: httpStatus.NOT_FOUND
+        message: USER_MESSAGE.ACCOUNT_LOCKED,
+        statusCode: httpStatus.LOCKED
       })
     }
-    console.log('Get User DB')
-    await this.cacheUserData(user)
-    return user
-  }
-
-  // Hàm cập nhật cache User và cập nhật User trong db
-  public async updateUserByIdCacheAndDB(user_id: string, updateUser: IUser) {
-    const user = await Users.findByIdAndUpdate(user_id, updateUser, { new: true })
-    if (user) {
-      await this.cacheUserData(user)
-    }
-    console.log('Cập nhật cache User')
-    return user
-  }
-
-  // Hàm xóa cache User
-  public async deleteUserCache(user_id: string) {
-    const cacheKey = `user:${user_id}`
-    console.log('Delete cache User', cacheKey)
-    await cacheService.del(cacheKey)
-  }
-
-  // Hàm kiểm tra user có bị lock không
-  public async isLocked(email: string) {
-    const user = await Users.findOne({ email })
-    return user?.locked
-  }
-
-  // Hàm cập nhật số lần đăng nhập thất bại
-  public async updateLoginAttempts(email: string, loginAttempts: number) {
-    const cacheKey = `loginAttempts:${email}`
-    await cacheService.set(cacheKey, loginAttempts.toString(), 30 * 24 * 60 * 60) // Cache trong 30 ngày
-  }
-
-  // Hàm lấy số lần đăng nhập thất bại
-  public async getLoginAttempts(email: string) {
-    const cacheKey = `loginAttempts:${email}`
-    const loginAttempts = await cacheService.get(cacheKey)
-    return loginAttempts ? Number(loginAttempts) : 0
-  }
-
-  // Hàm cập nhật device cache
-  private async updateDeviceCache(device: IDevice): Promise<void> {
-    if (!device || !device.device_id) {
-      console.error('Invalid device data for caching')
-      return
-    }
-    const cacheKey = `device:${device.device_id}`
-    await cacheService.set(cacheKey, JSON.stringify(device), 30 * 24 * 60 * 60) // Cache trong 30 ngày
-    console.log(`Device cached with key: ${cacheKey}`)
-  }
-
-  // Hàm lấy device từ cache hoặc db
-  private async getDeviceCache(device_id: string): Promise<IDevice | null> {
-    const deviceKey = `device:${device_id}`
-    const device = await cacheService.get(deviceKey)
-    return device ? JSON.parse(device) : null
   }
 
   // Hàm tạo mật khẩu ngẫu nhiên
@@ -161,9 +76,9 @@ class UserService {
   }
 
   // Kiểm tra xem tài khoản có tồn tại không
-  private async checkUserExistence(email: string, phone: string, username: string) {
+  private async checkUserExistence(email: string, phone: string, username: string, employee_code: string) {
     // Check User Existence
-    const userExits = await Users.findOne({ $or: [{ email }, { phone }, { username }] })
+    const userExits = await Users.findOne({ $or: [{ email }, { phone }, { username }, { employee_code }] })
     // Check email đã tồn tại chưa
     if (userExits?.email === email) {
       throw new ErrorWithStatusCode({
@@ -182,6 +97,13 @@ class UserService {
     if (userExits?.username === username) {
       throw new ErrorWithStatusCode({
         message: USER_MESSAGE.USERNAME_EXISTED,
+        statusCode: httpStatus.BAD_REQUEST
+      })
+    }
+    // Check employee_code đã tồn tại chưa
+    if (userExits?.employee_code === employee_code) {
+      throw new ErrorWithStatusCode({
+        message: USER_MESSAGE.EMPLOYEE_CODE_EXISTED,
         statusCode: httpStatus.BAD_REQUEST
       })
     }
@@ -225,6 +147,7 @@ class UserService {
       secretKey: process.env.REFRESH_TOKEN as string,
       expiresIn: process.env.EXPIRE_REFRESH_TOKEN as string
     })
+    return refresh_token
   }
 
   private constructor() {}
@@ -251,11 +174,11 @@ class UserService {
     role
   }: registerUserBodyType) {
     // Viết hoa chữ cái đầu của first_name và last_name va full_name
-    const [firstName, lastName, fullName, userExist] = await Promise.all([
+    const [firstName, lastName, fullName] = await Promise.all([
       capitalizeAfterSpace(first_name),
       capitalizeAfterSpace(last_name),
       capitalizeAfterSpace(full_name),
-      this.checkUserExistence(email, phone, username)
+      this.checkUserExistence(email, phone, username, employee_code)
     ])
 
     // Tạo email verify token và hash password
@@ -266,8 +189,8 @@ class UserService {
       password === '' ? await this.randomPassword(6) : await this.hashPassword(password as string)
     ])
 
-    // Tạo url verify email
-    const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email?token=${email_verify_token}`
+    // Tạo URL xác minh email bằng req.params.token
+    const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email/${email_verify_token}`
 
     //Tạo user trong mongodb và gửi email verify token
     const [user] = await Promise.all([
@@ -293,8 +216,7 @@ class UserService {
           verifyEmailUrl,
           expirationTime: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
         }
-      }),
-      this.deleteUserCache(email) // Xoá cache user nếu có
+      })
     ])
 
     const response: registerUserResType = {
@@ -349,12 +271,12 @@ class UserService {
     // Tìm device và cập nhật trong một lần truy vấn
     const updatedDevice = await Device.findOneAndUpdate(
       {
-        user_id: updatedUser._id,
+        user_id: updatedUser.id,
         device_id: deviceInfo.device_id
       },
       {
         ...deviceInfo,
-        user_id: updatedUser._id
+        user_id: updatedUser.id
       },
       { upsert: true, new: true, runValidators: true }
     )
@@ -365,13 +287,6 @@ class UserService {
         statusCode: httpStatus.INTERNAL_SERVER_ERROR
       })
     }
-
-    // Cập nhật device vào cache
-    console.log('Updated Device:', JSON.stringify(updatedDevice, null, 2))
-    const device = await this.updateDeviceCache(updatedDevice)
-    console.log('Updated Device Cache:', device)
-    // Xóa và cập nhật user vào cache
-    await Promise.all([this.deleteUserCache(updatedUser._id.toString()), this.cacheUserData(updatedUser)])
 
     return {
       message: USER_MESSAGE.EMAIL_VERIFY_SUCCESSFULLY
@@ -384,15 +299,15 @@ class UserService {
    * Response: message
    */
 
-  async resendEmailVerifyEmail({ email }: { email: string }) {
+  async resendEmailVerifyEmail({ username }: { username: string }) {
     // Tìm user và cập nhật email_verify_token trong một lần truy vấn
     const updatedUser = await Users.findOneAndUpdate(
       {
-        email,
+        username,
         email_verified: false // Chỉ tìm và cập nhật nếu email chưa được xác minh
       },
       {
-        email_verify_token: await this.generateEmailVerifyToken({ username: email.split('@')[0] }) // Tạo token mới
+        email_verify_token: await this.generateEmailVerifyToken({ username: username }) // Tạo token mới
       },
       { new: true, runValidators: true, select: 'email first_name email_verify_token' }
     )
@@ -400,13 +315,13 @@ class UserService {
     // Nếu không tìm thấy user hoặc email đã được xác minh
     if (!updatedUser) {
       throw new ErrorWithStatusCode({
-        message: USER_MESSAGE.EMAIL_NOT_FOUND_OR_ALREADY_VERIFIED,
+        message: USER_MESSAGE.USER_NOT_FOUND_OR_EMAIL_HAS_BEEN_VERIFIED,
         statusCode: httpStatus.NOT_FOUND
       })
     }
 
     // Tạo URL xác minh email
-    const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email?token=${updatedUser.email_verify_token}`
+    const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email/${updatedUser.email_verify_token}`
 
     // Gửi email xác minh
     await sendMail({
@@ -432,250 +347,242 @@ class UserService {
    */
 
   async loginUser({ email, password, device_id }: { email: string; password: string; device_id: string }) {
-    // Kiểm tra user trong cache và db có tồn tại không
-    const [user, loginAttempts, isLocked] = await Promise.all([
-      this.getUserByIdCacheAndDB(email),
-      this.getLoginAttempts(email),
-      this.isLocked(email)
-    ])
-
-    // Kiểm tra user có bị lock và số lần đăng nhập thất bại
-    if (isLocked || loginAttempts >= 5) {
-      throw new ErrorWithStatusCode({
-        message: USER_MESSAGE.ACCOUNT_LOCKED,
-        statusCode: httpStatus.LOCKED
-      })
-    }
-
-    // Kiểm tra password
-    const isMatch = await this.comparePassword(password, user.password)
-    // Nếu password không đúng thì tăng loginAttempts lên 1 và kiểm tra xem có đạt mức tối đa chưa
-    if (!isMatch) {
-      const newAttempts = loginAttempts + 1
-      await this.updateLoginAttempts(email, newAttempts)
-      if (newAttempts >= 5) {
-        await Users.findByIdAndUpdate(user._id, { locked: true })
+    // Tạo session
+    return databaseService.withTransaction(async (session) => {
+      // Kiểm tra user tồn tại chưa
+      const user = await Users.findOne({ email })
+        .select('email employee_code full_name role loginAttempts password email_verified locked')
+        .session(session)
+      if (!user) {
         throw new ErrorWithStatusCode({
-          message: USER_MESSAGE.ACCOUNT_LOCKED,
-          statusCode: httpStatus.LOCKED
+          message: USER_MESSAGE.EMAIL_OR_PASSWORD_INCORRECT,
+          statusCode: httpStatus.BAD_REQUEST
         })
       }
-      throw new ErrorWithStatusCode({
-        message: USER_MESSAGE.ACCOUNT_WILL_BE_LOCKED + ` ${5 - newAttempts} times`,
-        statusCode: httpStatus.BAD_REQUEST
-      })
-    }
 
-    // Reset loginAttempts về 0
-    await this.updateLoginAttempts(email, 0)
+      // Kiểm tra user có bị lock không
+      await this.checkUserLock(user)
 
-    // Kiểm tra thiết bị đã tồn tại chưa
-    const deviceExist = user.devices.some((device: any) => device.device_id === device_id)
+      // Kiểm tra password
+      const isMatch = await this.comparePassword(password, user.password)
 
-    if (!deviceExist) {
-      const emailVerifyDeviceToken = await this.generateEmailVerifyDeviceToken({
-        _id: user._id,
-        device_id
-      })
-
-      await Users.findByIdAndUpdate(user._id, {
-        email_verify_device_token: emailVerifyDeviceToken
-      })
-
-      const verificationUrl = `${process.env.CLIENT_URL}/verify-device?token=${emailVerifyDeviceToken}`
-
-      await sendMail({
-        to: user.email,
-        subject: 'Verify Device',
-        templateName: 'verifyDevice',
-        dynamic_Field: {
-          name: user.first_name,
-          verificationUrl,
-          expirationTime: process.env.EXPIRE_EMAIL_VERIFY_DEVICE_TOKEN as string
+      /**
+       * Kiểm tra password
+       * Nếu không đúng thì tăng loginAttempts lên 1
+       * Nếu loginAttempts >= 5 thì lock user
+       * Nếu loginAttempts < 5 thì save user và trả về thông báo
+       * Nếu đúng thì reset loginAttempts về 0
+       *
+       */
+      if (!isMatch) {
+        const now = new Date().getTime()
+        const fiveMinutesAgo = now - 1 * 60 * 1000
+        const updatedUser = await Users.findOneAndUpdate(
+          { _id: user.id },
+          [
+            {
+              $set: {
+                loginAttempts: {
+                  $cond: {
+                    if: { $eq: [{ $type: '$loginAttempts' }, 'object'] },
+                    then: '$loginAttempts',
+                    else: { count: 0, times: [] }
+                  }
+                }
+              }
+            },
+            {
+              $set: {
+                'loginAttempts.count': { $add: [{ $ifNull: ['$loginAttempts.count', 0] }, 1] },
+                'loginAttempts.times': {
+                  $let: {
+                    vars: {
+                      newTimes: {
+                        $concatArrays: [
+                          [now],
+                          {
+                            $filter: {
+                              input: { $ifNull: ['$loginAttempts.times', []] },
+                              as: 'time',
+                              cond: { $gte: ['$$time', fiveMinutesAgo] }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    in: { $slice: ['$$newTimes', 5] }
+                  }
+                }
+              }
+            },
+            {
+              $set: {
+                locked: { $gte: ['$loginAttempts.count', 5] }
+              }
+            }
+          ],
+          { new: true, upsert: true }
+        ).session(session)
+        if (updatedUser.locked) {
+          throw new ErrorWithStatusCode({
+            message: USER_MESSAGE.ACCOUNT_LOCKED,
+            statusCode: httpStatus.LOCKED
+          })
         }
-      })
-
-      return {
-        message: USER_MESSAGE.VERIFY_DEVICE_SENT
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.YOU_HAVE_ATTEMPTS_TO_LOGIN.replace(
+            /{attempts}/,
+            (5 - updatedUser.loginAttempts.count).toString()
+          ),
+          statusCode: httpStatus.BAD_REQUEST
+        })
       }
-    }
+      // Kiểm tra thiết bị và user_id đã tồn tại trong db Device chưa
+      const device = await Device.findOne({ user_id: user.id, device_id }).session(session)
 
-    // Neu device da ton tai
-    // Ký JWT
+      if (!device) {
+        const emailVerifyDeviceToken = await this.generateEmailVerifyDeviceToken({
+          id: user.id,
+          device_id
+        })
+        await Users.findByIdAndUpdate(user.id, { email_verify_device_token: emailVerifyDeviceToken }).session(session)
 
-    const [accessToken, refreshToken] = await Promise.all([
-      this.generateAccessToken({
-        _id: user._id,
-        role: user.role,
-        email_verified: user.email_verified
-      }),
-      this.generateRefreshToken({
-        _id: user._id
-      })
-    ])
+        const verificationUrl = `${process.env.CLIENT_URL}/verify-device/token=${emailVerifyDeviceToken}`
+        await sendMail({
+          to: user.email,
+          subject: 'Verify Device',
+          templateName: 'verifyDevice',
+          dynamic_Field: {
+            name: user.full_name,
+            verificationUrl,
+            expirationTime: process.env.EXPIRE_EMAIL_VERIFY_DEVICE_TOKEN as string
+          }
+        })
 
-    // Tạo hoặc cập nhật refresh token
-    const expiresIn = 30 * 24 * 60 * 60 * 1000
-    const expiresAt = new Date(Date.now() + expiresIn)
-
-    // Luu refresh token vao db
-    await RefreshToken.findOneAndUpdate(
-      { user_id: user._id, device: device_id },
-      {
-        refresh_token: refreshToken,
-        expires: expiresAt
-      },
-      { upsert: true, new: true }
-    )
-    // Cập nhật device_id và last_login
-    user.device_id = device_id
-    user.last_login = new Date()
-
-    //Xóa cache user cũ và cache user mới
-    await this.deleteUserCache(user._id.toString())
-
-    // Cập nhật cache user
-    await this.cacheUserData(user)
-
-    // Lưu refreshToken vào redis
-    await cacheService.set(`refreshToken:${user._id.toString()}:${device_id.toString()}`, refreshToken, expiresIn)
-
-    return {
-      message: USER_MESSAGE.LOGIN_SUCCESSFULLY,
-      data: {
-        access_token: accessToken,
-        refresh_token: refreshToken
+        return {
+          message: USER_MESSAGE.VERIFY_DEVICE_SENT
+        }
       }
-    }
+
+      // Cập nhật last_login và device_id cho user
+      device.last_login = new Date()
+      device.device_id = device_id
+      await device.save({ session })
+
+      // Tạo AccessToken và RefreshToken
+      const [accessToken, refreshToken] = await Promise.all([
+        this.generateAccessToken({
+          id: user.id,
+          role: user.role,
+          email_verified: user.email_verified
+        }),
+        this.generateRefreshToken({
+          id: user.id
+        })
+      ])
+
+      const expires = new Date(Date.now() + ms(process.env.EXPIRE_REFRESH_TOKEN as string))
+
+      // Cập nhật refresh token cho thiết bị lưu vào db
+      await RefreshToken.findOneAndUpdate(
+        {
+          user_id: user.id,
+          device: device_id
+        },
+        {
+          refresh_token: refreshToken,
+          expires
+        },
+        { upsert: true, new: true }
+      ).session(session)
+
+      await session.commitTransaction()
+      const response: loginUserResType = {
+        message: USER_MESSAGE.LOGIN_SUCCESSFULLY,
+        data: {
+          accessToken,
+          refreshToken
+        }
+      }
+      return response
+    })
   }
 
-  // Cập nhật refresh token cho thiết bị lưu vào db và redis
+  /**
+   * Description: Verify Device sau khi đăng nhập
+   * Req.params: token
+   * Req.decoded_email_verify_device_token: _id, device_id
+   * Response: message
+   * @param data
+   * @returns
+   */
 
-  // export const loginServices = async (data: loginUserBodyType) => {
-  //   const { email, password, device_id } = data
+  async verifyDevice({ id, token, device_id }: { id: string; token: string; device_id: string }) {
+    return databaseService.withTransaction(async (session) => {
+      // Tìm user theo _id
+      const user = await Users.findById(id, token).session(session)
+      if (!user) {
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.USER_NOT_FOUND,
+          statusCode: httpStatus.NOT_FOUND
+        })
+      }
 
-  //   // Kiểm tra cache trước khi kiểm tra trong db
-  //   let user = await getCachedUser(email)
+      // Kiểm tra số lượng thiết bị hiện tại
+      const devices = await Device.find({ user_id: user._id }).session(session)
 
-  //   if (!user) {
-  //     user = await Users.findOne({ email })?.select('email first_name devices role loginAttempts password email_verified')
-  //     if (user) {
-  //       await cacheUser(email, user)
-  //     }
-  //   }
+      if (devices.length >= 3) {
+        await session.abortTransaction()
+        return {
+          message: USER_MESSAGE.TOO_MANY_DEVICES,
+          data: {
+            devices: devices.map((device) => ({
+              device_id: device.device_id,
+              type: device.type,
+              os: device.os,
+              browser: device.browser,
+              ip: device.ip
+            })),
+            deleteDeviceUrl: `${process.env.CLIENT_URL}/delete-device`
+          },
+          statusCode: httpStatus.CONFLICT
+        }
+      }
 
-  //   if (!user) {
-  //     throw new ErrorWithStatusCode({
-  //       message: USER_MESSAGE.EMAIL_OR_PASSWORD_INCORRECT,
-  //       statusCode: httpStatus.BAD_REQUEST
-  //     })
-  //   }
+      if (!user._id || !device_id) {
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.INVALID_DATA,
+          statusCode: httpStatus.BAD_REQUEST
+        })
+      }
 
-  //   // Kiểm tra số lần đăng nhập thất bại
-  //   const loginAttempts = await getLoginAttempts(email)
-  //   if (loginAttempts >= 5) {
-  //     throw new ErrorWithStatusCode({
-  //       message: USER_MESSAGE.ACCOUNT_LOCKED,
-  //       statusCode: httpStatus.LOCKED
-  //     })
-  //   }
+      // Thêm thiết bị mới
+      const device = await Device.create({
+        user_id: user._id,
+        device_id: device_id,
+        type: 'unknown',
+        os: 'unknown',
+        browser: 'unknown',
+        ip: 'unknown'
+      })
+      console.log(device)
+      // Cập nhật email_verify_device_token
+      await Users.findByIdAndUpdate(user._id, { email_verify_device_token: '' }).session(session)
 
-  //   // Kiểm tra password
-  //   const isMatch = await comparePassword(password, user.password)
-  //   // Nếu password không đúng thì tăng loginAttempts lên 1 và kiểm tra xem có đạt mức tối đa chưa
-  //   if (!isMatch) {
-  //     const newAttempts = loginAttempts + 1
-  //     await updateLoginAttempts(email, newAttempts)
-  //     if (newAttempts >= 5) {
-  //       await Users.findOneAndUpdate(user._id, {
-  //         locked: true
-  //       })
+      const newRefreshToken = await RefreshToken.create({
+        user_id: id,
+        device: device.device_id,
+        refresh_token: '',
+        expires: ''
+      })
+      console.log(newRefreshToken)
 
-  //       throw new ErrorWithStatusCode({
-  //         message: USER_MESSAGE.ACCOUNT_LOCKED,
-  //         statusCode: httpStatus.LOCKED
-  //       })
-  //     }
-  //     throw new ErrorWithStatusCode({
-  //       message: USER_MESSAGE.ACCOUNT_WILL_BE_LOCKED + ` ${5 - newAttempts} times`,
-  //       statusCode: httpStatus.BAD_REQUEST
-  //     })
-  //   }
-
-  //   // Reset loginAttempts về 0
-  //   await updateLoginAttempts(email, 0)
-
-  //   // Kiểm tra thiết bị đã tồn tại chưa
-  //   const deviceExist = user.devices.findIndex((device: any) => device.device_id === device_id)
-  //   // -1 là chưa tồn tại
-  //   if (deviceExist === -1) {
-  //     const emailVerifyDeviceToken = await generateEmailVerifyDeviceToken({
-  //       _id: user._id,
-  //       device_id
-  //     })
-  //     console.log(emailVerifyDeviceToken)
-  //     // Tạo url verify device
-  //     const verificationUrl = `${process.env.CLIENT_URL}/verify-device?token=${emailVerifyDeviceToken}`
-  //     // Gửi email verify device cho user
-  //     await sendMail({
-  //       to: user.email,
-  //       subject: 'Verify Device',
-  //       templateName: 'verifyDevice',
-  //       dynamic_Field: {
-  //         name: user.first_name,
-  //         verificationUrl,
-  //         expirationTime: process.env.EXPIRE_EMAIL_VERIFY_DEVICE_TOKEN as string
-  //       }
-  //     })
-  //     return {
-  //       message: USER_MESSAGE.VERIFY_DEVICE_SENT
-  //     }
-  //   }
-
-  //   // Ký JWT
-  //   const [accessToken, refreshToken] = await Promise.all([
-  //     generateAccessToken({
-  //       _id: user._id,
-  //       role: user.role,
-  //       email_verified: user.email_verified
-  //     }),
-  //     generateRefreshToken({
-  //       _id: user._id
-  //     })
-  //   ])
-
-  //   // Kiểm tra user_id và device_id đã có refresh token chưa
-  //   const refreshTokenExist = await RefreshToken.findOne({ user_id: user._id })
-  //   // Nếu có thì update refresh token
-  //   if (refreshTokenExist) {
-  //     await RefreshToken.findByIdAndUpdate(refreshTokenExist._id, {
-  //       refresh_token: refreshToken
-  //     })
-  //   } else {
-  //     // Nếu chưa thì tạo mới refresh token
-  //     const newRefreshToken = new RefreshToken({
-  //       user_id: user._id,
-  //       refresh_token: refreshToken
-  //     })
-  //     await newRefreshToken.save()
-  //   }
-  //   // Update device_id và last_login
-  //   user.device_id = device_id
-  //   user.last_login = new Date()
-
-  //   // Xoá cache user cũ và cache user mới
-
-  //   await cacheUser(user.email, user)
-
-  //   // Trả về thông tin token
-  //   return {
-  //     message: USER_MESSAGE.LOGIN_SUCCESSFULLY,
-  //     data: {
-  //       accessToken,
-  //       refreshToken
-  //     }
-  //   }
-  // }
+      await session.commitTransaction()
+      return {
+        message: USER_MESSAGE.VERIFY_DEVICE_SUCCESSFULLY
+      }
+    })
+  }
 }
 
 export const userService = UserService.getInstance()

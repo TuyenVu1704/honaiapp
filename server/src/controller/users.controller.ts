@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { JwtPayload } from 'jsonwebtoken'
-import { emailVerifyTokenQueryType } from '~/middlewares/emailVerifyToken.middlewares'
+import { emailVerifyTokenParamsType } from '~/middlewares/emailVerifyToken.middlewares'
 import {
   loginUserBodyType,
   registerUserBodyType,
@@ -56,7 +56,7 @@ export const registerUserController = tryCatchHandler(async (req: Request, res: 
  *
  */
 export const verifyEmailController = tryCatchHandler(async (req: Request, res: Response) => {
-  const { token } = req.query as emailVerifyTokenQueryType
+  const { token } = req.params as emailVerifyTokenParamsType
   const { username } = req.decoded_email_verify_token as JwtPayload
 
   const deviceInfo = await userService.getDeviceInfo(req)
@@ -69,8 +69,8 @@ export const verifyEmailController = tryCatchHandler(async (req: Request, res: R
  * Roles: Admin
  */
 export const resendEmailVerifyTokenController = tryCatchHandler(async (req: Request, res: Response) => {
-  const { email } = req.body as resendEmailVerifyTokenBodyType
-  const result = await userService.resendEmailVerifyEmail({ email })
+  const { username } = req.body as resendEmailVerifyTokenBodyType
+  const result = await userService.resendEmailVerifyEmail({ username })
   return res.json(result)
 })
 
@@ -79,19 +79,20 @@ export const resendEmailVerifyTokenController = tryCatchHandler(async (req: Requ
  */
 export const loginUserController = tryCatchHandler(async (req: Request, res: Response) => {
   const { email, password, device_id } = req.body as loginUserBodyType
+  // device_id là id của thiết bị thực tế sẽ lấy từ req.headers
   const result = await userService.loginUser({ email, password, device_id })
   return res.json(result)
 })
 
-// /**
-//  * Description: Verify Device sau khi đăng nhập
-//  */
-// export const verifyDeviceController = tryCatchHandler(async (req: Request, res: Response) => {
-//   const { _id, device_id } = req.decoded_email_verify_device_token as JwtPayload
-
-//   const result = await verifyDeviceService({ _id, device_id })
-//   return res.json(result)
-// })
+/**
+ * Description: Verify Device sau khi đăng nhập
+ */
+export const verifyDeviceController = tryCatchHandler(async (req: Request, res: Response) => {
+  const { token } = req.params as emailVerifyTokenParamsType
+  const { id, device_id } = req.decoded_email_verify_device_token as JwtPayload
+  const result = await userService.verifyDevice({ id, token, device_id })
+  return res.json(result)
+})
 
 // /**
 //  * Description: Refresh Token

@@ -21,7 +21,7 @@ export type refreshTokenBodyType = z.infer<typeof refreshTokenBody>
 
 export const refreshTokenPayloadSchema = z
   .object({
-    _id: z.string()
+    id: z.string()
   })
   .strict()
 

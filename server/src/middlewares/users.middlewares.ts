@@ -53,7 +53,7 @@ export type registerUserResType = z.infer<typeof registerUserRes>
 // Resend email verify token body
 export const resendEmailVerifyTokenBody = z
   .object({
-    email: z.string().email({ message: 'Invalid email address' })
+    username: z.string().min(2, { message: 'Username must be at least 2 characters' }).trim()
   })
   .strict()
 
