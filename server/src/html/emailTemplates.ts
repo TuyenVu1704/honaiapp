@@ -105,6 +105,9 @@ const templates: Record<string, string> = {
     <h1>Verify Your Email Address</h1>
     <p>Hello {{name}},</p>
     <p>Congratulations on being a member of Ho Nai Company Limited! Please click the button below, and then change your password:</p>
+    <p>Username: {{username}}</p>
+    <p>Password: {{password}}</p>
+    <span>Please do not share your username and password with anyone</span>
     <table border="0" cellpadding="0" cellspacing="0" width="100%" class="buttonContent">
       <tr>
         <td align="center" valign="middle">

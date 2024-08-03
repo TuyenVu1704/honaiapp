@@ -52,6 +52,8 @@ export const USER_MESSAGE = {
   USER_NOT_FOUND_OR_EMAIL_HAS_BEEN_VERIFIED: 'User not found or Email has been verified',
   EMAIL_VERIFY_DEVICE_TOKEN_EXPIRED: 'Email verify device token expired',
   EMAIL_VERIFY_DEVICE_TOKEN_INVALID_TOKEN: 'Email verify device token invalid token',
+  CHANGE_PASSWORD_TOKEN_IS_REQUIRED: 'Change password token is required',
+  CHANGE_PASSWORD_TOKEN_EXPIRED: 'Change password token expired',
 
   // User
   USERNAME_EXISTED: 'Username already exists',
@@ -65,6 +67,7 @@ export const USER_MESSAGE = {
   UPDATE_PROFILE_SUCCESSFULLY: 'Update profile successfully',
   GET_PROFILE_SUCCESSFULLY: 'Get profile successfully',
   YOU_HAVE_ATTEMPTS_TO_LOGIN: 'You have {attempts} attempts to login',
+  CHANGE_PASSWORD_SUCCESSFULLY: 'Change password successfully',
 
   //Update
   UPDATE_USER_PROFILE_SUCCESSFULLY: 'Update user profile successfully',

@@ -1,10 +1,10 @@
-import mongoose from 'mongoose'
+import mongoose, { ObjectId } from 'mongoose'
 import { string } from 'zod'
 
 export interface IRefreshToken {
   _id: mongoose.Types.ObjectId
   id: string
-  user_id: string
+  user_id: ObjectId
   device: string
   refresh_token: string
   expires?: Date | null
@@ -15,7 +15,7 @@ const Schema = mongoose.Schema
 const RefreshTokenSchema = new Schema<IRefreshToken>(
   {
     user_id: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId || String,
       ref: 'User',
       required: true,
       index: true

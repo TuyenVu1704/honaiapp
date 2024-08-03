@@ -19,7 +19,7 @@ export type emailVerifyTokenParamsType = z.infer<typeof emailVerifyTokenParams>
 
 export const emailVerifyTokenSchema = z
   .object({
-    username: z.string()
+    email: z.string()
   })
   .strict()
 

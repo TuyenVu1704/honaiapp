@@ -3,7 +3,15 @@ import bcrypt from 'bcryptjs'
 import { ErrorWithStatusCode } from '~/config/errors'
 import httpStatus from '~/constants/httpStatus'
 import { USER_MESSAGE } from '~/constants/messages'
-import { loginUserResType, registerUserBodyType, registerUserResType } from '~/middlewares/users.middlewares'
+import {
+  adminUpdateUserProfileBodyType,
+  adminUpdateUserProfileResType,
+  loginUserResType,
+  registerUserBodyType,
+  registerUserResType,
+  resendEmailVerifyTokenResType,
+  verifyEmailResType
+} from '~/middlewares/users.middlewares'
 import Users, { IUser } from '~/models/Users.schema'
 import { signToken } from '~/utils/jwt'
 import { emailVerifyTokenSchema, emailVerifyTokenSchemaType } from '~/middlewares/emailVerifyToken.middlewares'
@@ -14,14 +22,14 @@ import {
 import { accessTokenPayloadSchema, accessTokenPayloadType } from '~/middlewares/accessToken.middlewares'
 import { refreshTokenPayloadSchema, refreshTokenPayloadType } from '~/middlewares/refreshToken.middlewares'
 import { sendMail } from '~/config/mailConfig'
-import e, { Request } from 'express'
+import { Request } from 'express'
 import { UAParser } from 'ua-parser-js'
-import { capitalizeAfterSpace } from '~/utils/capitalizeAfterSpace'
 import { convertoIPv4 } from '~/utils/ipConverter'
 import Device, { IDevice } from '~/models/Devices.schema'
 import RefreshToken from '~/models/RefreshToken.schema'
 import { databaseService } from './Database.service'
 import ms from 'ms'
+
 config()
 class UserService {
   private static instance: UserService
@@ -44,6 +52,16 @@ class UserService {
       password += charset.charAt(Math.floor(Math.random() * charset.length))
     }
     return password
+  }
+
+  // Hàm tạo các số ngẫu nhiên
+  public randomNumber = async (length: number): Promise<string> => {
+    const charset = '0123456789'
+    let number = ''
+    for (let i = 0; i < length; i++) {
+      number += charset.charAt(Math.floor(Math.random() * charset.length))
+    }
+    return number
   }
 
   //Hàm hash password
@@ -150,6 +168,72 @@ class UserService {
     return refresh_token
   }
 
+  // Kiểm tra device và tạo device mới
+  private async checkDeviceAndUpdateLastLogin(user: IUser, device_id: string) {
+    // Kiểm tra thiết bị và user_id đã tồn tại trong db Device chưa
+    const device = await Device.findOneAndUpdate(
+      { user_id: user.id, device_id },
+      { last_login: new Date() },
+      {
+        upsert: true,
+        new: true
+      }
+    )
+    return device
+  }
+
+  // Kiểm tra refresh token và tạo refresh token mới
+  private async checkRefreshTokenAndCreateNewRefreshToken(user: IUser, device_id: string, refresh_token: string) {
+    const expires = new Date(Date.now() + ms(process.env.EXPIRE_REFRESH_TOKEN as string))
+    const newRefreshToken = await RefreshToken.findOneAndUpdate(
+      {
+        user_id: user.id,
+        device: device_id
+      },
+      {
+        refresh_token: refresh_token,
+        expires
+      },
+      { upsert: true, new: true }
+    )
+    return newRefreshToken
+  }
+
+  // Tạo đối tượng để lưu các trường cần cập nhật
+  private async processUpdateFields<T>(updateData: Partial<T>, userId?: string): Promise<Partial<T>> {
+    const updateFields: Partial<T> = {}
+    for (const key in updateData) {
+      if (key === 'employee_code' || key === 'username' || key === 'email' || key === 'phone') {
+        const validKey = key as keyof T & ('employee_code' | 'username' | 'email' | 'phone')
+        await this.checkFieldsUser(validKey, updateData[key] as string, userId as string)
+      }
+      updateFields[key] = updateData[key]
+    }
+    return updateFields
+  }
+
+  // Tạo check Fields cần cập nhật
+  private async checkFieldsUser(
+    fields: 'employee_code' | 'username' | 'email' | 'phone',
+    value: string,
+    userId: string
+  ): Promise<void> {
+    const existingUser = await Users.findOne({ [fields]: value, _id: { $ne: userId } })
+    if (existingUser) {
+      const message =
+        fields === 'employee_code'
+          ? USER_MESSAGE.EMPLOYEE_CODE_EXISTED
+          : fields === 'username'
+            ? USER_MESSAGE.USERNAME_EXISTED
+            : fields === 'email'
+              ? USER_MESSAGE.EMAIL_EXISTED
+              : USER_MESSAGE.PHONE_EXISTED
+      throw new ErrorWithStatusCode({
+        message,
+        statusCode: httpStatus.CONFLICT
+      })
+    }
+  }
   private constructor() {}
   static getInstance(): UserService {
     if (!UserService.instance) {
@@ -173,20 +257,18 @@ class UserService {
     username,
     role
   }: registerUserBodyType) {
-    // Viết hoa chữ cái đầu của first_name và last_name va full_name
-    const [firstName, lastName, fullName] = await Promise.all([
-      capitalizeAfterSpace(first_name),
-      capitalizeAfterSpace(last_name),
-      capitalizeAfterSpace(full_name),
-      this.checkUserExistence(email, phone, username, employee_code)
-    ])
+    // Kiểm tra user đã tồn tại chưa
+    await this.checkUserExistence(email, phone, username, employee_code)
+
+    //Tạo newUserName
+    const newUserName = (username + '-' + (await this.randomNumber(6))) as string
 
     // Tạo email verify token và hash password
     const [email_verify_token, hashedPassword] = await Promise.all([
       this.generateEmailVerifyToken({
-        username
+        email: email
       }),
-      password === '' ? await this.randomPassword(6) : await this.hashPassword(password as string)
+      password === undefined ? await this.randomPassword(6) : await this.hashPassword(password as string)
     ])
 
     // Tạo URL xác minh email bằng req.params.token
@@ -195,15 +277,15 @@ class UserService {
     //Tạo user trong mongodb và gửi email verify token
     const [user] = await Promise.all([
       Users.create({
-        first_name: firstName,
-        last_name: lastName,
-        full_name: fullName,
+        first_name,
+        last_name,
+        full_name,
         email,
         phone,
         password: hashedPassword,
         email_verify_token,
         employee_code,
-        username,
+        username: newUserName,
         role
       }),
       // Gửi email verify token cho user
@@ -214,6 +296,8 @@ class UserService {
         dynamic_Field: {
           name: first_name,
           verifyEmailUrl,
+          username: newUserName,
+          password: hashedPassword,
           expirationTime: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
         }
       })
@@ -241,56 +325,68 @@ class UserService {
   /**
    * Description: Verify Email sau khi đăng ký tài khoản thành công
    * Req.query: email_verify_token
-   * req.decoded_email_verify_token: _id
+   * req.decoded_email_verify_token: username
    * Response: message
    */
-  async verifyEmail({ username, token, deviceInfo }: { username: string; token: string; deviceInfo: IDevice }) {
-    // Tìm user và cập nhật trong một lần truy vấn
-    const updatedUser = await Users.findOneAndUpdate(
-      {
-        username,
-        email_verify_token: token,
-        email_verified: false // Thêm điều kiện này để đảm bảo chỉ cập nhật nếu chưa verify
-      },
-      {
-        email_verified: true,
-        email_verify_token: ''
-        // Sử dụng $push để thêm thiết bị mới vào mảng
-      },
-      { new: true, runValidators: true }
-    )
+  async verifyEmail({ email, token, deviceInfo }: { email: string; token: string; deviceInfo: IDevice }) {
+    return databaseService.withTransaction(async (session) => {
+      // Tìm user và cập nhật trong một lần truy vấn
+      const updatedUser = await Users.findOneAndUpdate(
+        {
+          email,
+          email_verify_token: token,
+          email_verified: false // Thêm điều kiện này để đảm bảo chỉ cập nhật nếu chưa verify
+        },
+        {
+          email_verified: true,
+          email_verify_token: ''
+          // Sử dụng $push để thêm thiết bị mới vào mảng
+        },
+        { new: true, runValidators: true }
+      ).session(session)
 
-    // Nếu không tìm thấy user hoặc email đã được verify
-    if (!updatedUser) {
-      throw new ErrorWithStatusCode({
-        message: USER_MESSAGE.USER_NOT_FOUND_OR_EMAIL_HAS_BEEN_VERIFIED,
-        statusCode: httpStatus.NOT_FOUND
-      })
-    }
+      // Nếu không tìm thấy user hoặc email đã được verify
+      if (!updatedUser) {
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.USER_NOT_FOUND_OR_EMAIL_HAS_BEEN_VERIFIED,
+          statusCode: httpStatus.NOT_FOUND
+        })
+      }
 
-    // Tìm device và cập nhật trong một lần truy vấn
-    const updatedDevice = await Device.findOneAndUpdate(
-      {
-        user_id: updatedUser.id,
-        device_id: deviceInfo.device_id
-      },
-      {
-        ...deviceInfo,
-        user_id: updatedUser.id
-      },
-      { upsert: true, new: true, runValidators: true }
-    )
-    if (!updatedDevice) {
-      console.error('Failed to update or create device')
-      throw new ErrorWithStatusCode({
-        message: USER_MESSAGE.DEVICE_UPDATE_FAILED,
-        statusCode: httpStatus.INTERNAL_SERVER_ERROR
-      })
-    }
+      const [updatedDevice, access_token, refresh_token] = await Promise.all([
+        this.checkDeviceAndCreateNewDevice(updatedUser, deviceInfo.device_id),
 
-    return {
-      message: USER_MESSAGE.EMAIL_VERIFY_SUCCESSFULLY
-    }
+        this.generateAccessToken({
+          id: updatedUser.id,
+          role: updatedUser.role,
+          email_verified: updatedUser.email_verified
+        }),
+        this.generateRefreshToken({
+          id: updatedUser.id
+        })
+      ])
+
+      if (!updatedDevice) {
+        console.error('Failed to update or create device')
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.DEVICE_UPDATE_FAILED,
+          statusCode: httpStatus.INTERNAL_SERVER_ERROR
+        })
+      }
+
+      // Cập nhật refresh token cho thiết bị lưu vào db
+      await this.checkRefreshTokenAndCreateNewRefreshToken(updatedUser, updatedDevice.device_id, refresh_token)
+
+      await session.commitTransaction()
+      const response: verifyEmailResType = {
+        message: USER_MESSAGE.EMAIL_VERIFY_SUCCESSFULLY,
+        data: {
+          access_token
+        }
+      }
+
+      return response
+    })
   }
 
   /**
@@ -299,58 +395,134 @@ class UserService {
    * Response: message
    */
 
-  async resendEmailVerifyEmail({ username }: { username: string }) {
-    // Tìm user và cập nhật email_verify_token trong một lần truy vấn
-    const updatedUser = await Users.findOneAndUpdate(
-      {
-        username,
-        email_verified: false // Chỉ tìm và cập nhật nếu email chưa được xác minh
-      },
-      {
-        email_verify_token: await this.generateEmailVerifyToken({ username: username }) // Tạo token mới
-      },
-      { new: true, runValidators: true, select: 'email first_name email_verify_token' }
-    )
+  async resendEmailVerifyEmail({ email }: { email: string }) {
+    return databaseService.withTransaction(async (session) => {
+      // Tìm user và cập nhật email_verify_token trong một lần truy vấn
+      const updatedUser = await Users.findOneAndUpdate(
+        {
+          email,
+          email_verified: false // Chỉ tìm và cập nhật nếu email chưa được xác minh
+        },
+        {
+          email_verify_token: await this.generateEmailVerifyToken({ email }) // Tạo token mới
+        },
+        { new: true, runValidators: true, select: 'email first_name email_verify_token' }
+      ).session(session)
 
-    // Nếu không tìm thấy user hoặc email đã được xác minh
-    if (!updatedUser) {
-      throw new ErrorWithStatusCode({
-        message: USER_MESSAGE.USER_NOT_FOUND_OR_EMAIL_HAS_BEEN_VERIFIED,
-        statusCode: httpStatus.NOT_FOUND
-      })
-    }
-
-    // Tạo URL xác minh email
-    const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email/${updatedUser.email_verify_token}`
-
-    // Gửi email xác minh
-    await sendMail({
-      to: updatedUser.email,
-      subject: 'Verify Email',
-      templateName: 'verifyEmail',
-      dynamic_Field: {
-        name: updatedUser.first_name,
-        verifyEmailUrl,
-        expirationTime: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
+      // Nếu không tìm thấy user hoặc email đã được xác minh
+      if (!updatedUser) {
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.USER_NOT_FOUND_OR_EMAIL_HAS_BEEN_VERIFIED,
+          statusCode: httpStatus.NOT_FOUND
+        })
       }
-    })
 
-    return {
-      message: USER_MESSAGE.RESEND_EMAIL_VERIFY_SUCCESSFULLY
-    }
+      // Tạo URL xác minh email
+      const verifyEmailUrl = `${process.env.CLIENT_URL}/verify-email/${updatedUser.email_verify_token}`
+
+      // Gửi email xác minh
+      await sendMail({
+        to: updatedUser.email,
+        subject: 'Verify Email',
+        templateName: 'verifyEmail',
+        dynamic_Field: {
+          name: updatedUser.first_name,
+          verifyEmailUrl,
+          expirationTime: process.env.EXPIRE_EMAIL_VERIFY_TOKEN as string
+        }
+      })
+
+      await session.commitTransaction()
+
+      const response: resendEmailVerifyTokenResType = {
+        message: USER_MESSAGE.EMAIL_SENT_SUCCESSFULLY
+      }
+
+      return response
+    })
+  }
+
+  /**
+   * Description: Change Password sau khi verify email
+   * Req.body: new_password
+   * Req.decoded_change_password_token: email
+   * Response: message
+   */
+
+  async changePassword({ id, new_password }: { id: string; new_password: string }) {
+    return databaseService.withTransaction(async (session) => {
+      // Tìm user và cập nhật password trong một lần truy vấn
+      const updatedUser = await Users.findOneAndUpdate(
+        { _id: id },
+        { password: await this.hashPassword(new_password) },
+        { new: true, upsert: true, runValidators: true }
+      ).session(session)
+
+      if (!updatedUser) {
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.USER_NOT_FOUND,
+          statusCode: httpStatus.NOT_FOUND
+        })
+      }
+
+      await session.commitTransaction()
+      const response: resendEmailVerifyTokenResType = {
+        message: USER_MESSAGE.CHANGE_PASSWORD_SUCCESSFULLY
+      }
+
+      return response
+    })
+  }
+
+  /**
+   * Description: Admin thay đổi thông tin user
+   * Req.body: first_name, last_name, email, phone, username, role, permissions, department, position
+   * Req.params: id
+   * Response: {
+   * message
+   * data
+   * }
+   */
+
+  async adminUpdateUserProfile({ id, data }: { id: string; data: Partial<adminUpdateUserProfileBodyType> }) {
+    return databaseService.withTransaction(async (session) => {
+      const user = await Users.findById(id).session(session)
+      if (!user) {
+        throw new ErrorWithStatusCode({
+          message: USER_MESSAGE.USER_NOT_FOUND,
+          statusCode: httpStatus.NOT_FOUND
+        })
+      }
+      // Xử lý dữ liệu cập nhật
+      const updateFields = await this.processUpdateFields<adminUpdateUserProfileBodyType>(data, user.id)
+      console.log(updateFields)
+      // Cập nhật thông tin user
+      await Users.findByIdAndUpdate(id, updateFields, { new: true, runValidators: true }).session(session)
+
+      await session.commitTransaction()
+      const response: adminUpdateUserProfileResType = {
+        message: USER_MESSAGE.UPDATE_USER_PROFILE_SUCCESSFULLY,
+        data: {
+          user: {
+            updateFields
+          }
+        }
+      }
+      return response
+    })
   }
 
   /**
    * Description: Đăng nhập tài khoản
-   * Req.body: email, password, device_id
+   * Req.body: username, password, device_id
    * Response: message, data { accessToken, refreshToken }
    */
 
-  async loginUser({ email, password, device_id }: { email: string; password: string; device_id: string }) {
+  async loginUser({ username, password, device_id }: { username: string; password: string; device_id: string }) {
     // Tạo session
     return databaseService.withTransaction(async (session) => {
       // Kiểm tra user tồn tại chưa
-      const user = await Users.findOne({ email })
+      const user = await Users.findOne({ username })
         .select('email employee_code full_name role loginAttempts password email_verified locked')
         .session(session)
       if (!user) {
@@ -438,9 +610,9 @@ class UserService {
         })
       }
       // Kiểm tra thiết bị và user_id đã tồn tại trong db Device chưa
-      const device = await Device.findOne({ user_id: user.id, device_id }).session(session)
-
-      if (!device) {
+      const existDevice = await this.checkDeviceAndCreateNewDevice(user, device_id)
+      console.log(existDevice)
+      if (!existDevice) {
         const emailVerifyDeviceToken = await this.generateEmailVerifyDeviceToken({
           id: user.id,
           device_id
@@ -459,15 +631,17 @@ class UserService {
           }
         })
 
+        await session.commitTransaction()
+
         return {
           message: USER_MESSAGE.VERIFY_DEVICE_SENT
         }
       }
-
+      return 'ok'
       // Cập nhật last_login và device_id cho user
-      device.last_login = new Date()
-      device.device_id = device_id
-      await device.save({ session })
+      existDevice.last_login = new Date()
+      existDevice.device_id = device_id
+      await existDevice.save({ session })
 
       // Tạo AccessToken và RefreshToken
       const [accessToken, refreshToken] = await Promise.all([

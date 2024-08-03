@@ -2,6 +2,9 @@ import { Request, Response } from 'express'
 import { JwtPayload } from 'jsonwebtoken'
 import { emailVerifyTokenParamsType } from '~/middlewares/emailVerifyToken.middlewares'
 import {
+  adminUpdateUserProfileBodyType,
+  adminUpdateUserProfileParamsType,
+  changePasswordBodyType,
   loginUserBodyType,
   registerUserBodyType,
   resendEmailVerifyTokenBodyType
@@ -57,10 +60,10 @@ export const registerUserController = tryCatchHandler(async (req: Request, res: 
  */
 export const verifyEmailController = tryCatchHandler(async (req: Request, res: Response) => {
   const { token } = req.params as emailVerifyTokenParamsType
-  const { username } = req.decoded_email_verify_token as JwtPayload
+  const { email } = req.decoded_email_verify_token as JwtPayload
 
   const deviceInfo = await userService.getDeviceInfo(req)
-  const result = await userService.verifyEmail({ username, token, deviceInfo })
+  const result = await userService.verifyEmail({ email, token, deviceInfo })
   return res.json(result)
 })
 
@@ -69,8 +72,32 @@ export const verifyEmailController = tryCatchHandler(async (req: Request, res: R
  * Roles: Admin
  */
 export const resendEmailVerifyTokenController = tryCatchHandler(async (req: Request, res: Response) => {
-  const { username } = req.body as resendEmailVerifyTokenBodyType
-  const result = await userService.resendEmailVerifyEmail({ username })
+  const { email } = req.body as resendEmailVerifyTokenBodyType
+  const result = await userService.resendEmailVerifyEmail({ email })
+  return res.json(result)
+})
+
+/**
+ * Description: Change Password sau khi verify email
+ *
+ */
+
+export const changePasswordController = tryCatchHandler(async (req: Request, res: Response) => {
+  const { new_password } = req.body as changePasswordBodyType
+  const { id } = req.user as JwtPayload
+  const result = await userService.changePassword({ id, new_password })
+  return res.json(result)
+})
+
+/**
+ * Description: Admin update thông tin user
+ * Roles: Admin
+ */
+
+export const adminUpdateUserProfileController = tryCatchHandler(async (req: Request, res: Response) => {
+  const { id } = req.params as adminUpdateUserProfileParamsType
+  const data = req.body as adminUpdateUserProfileBodyType
+  const result = await userService.adminUpdateUserProfile({ id, data })
   return res.json(result)
 })
 
@@ -78,9 +105,9 @@ export const resendEmailVerifyTokenController = tryCatchHandler(async (req: Requ
  * Description: Đăng nhập tài khoản
  */
 export const loginUserController = tryCatchHandler(async (req: Request, res: Response) => {
-  const { email, password, device_id } = req.body as loginUserBodyType
+  const { username, password, device_id } = req.body as loginUserBodyType
   // device_id là id của thiết bị thực tế sẽ lấy từ req.headers
-  const result = await userService.loginUser({ email, password, device_id })
+  const result = await userService.loginUser({ username, password, device_id })
   return res.json(result)
 })
 

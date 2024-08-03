@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import {
+  adminUpdateUserProfileController,
+  changePasswordController,
   loginUserController,
   registerUserController,
   resendEmailVerifyTokenController,
@@ -15,6 +17,7 @@ import { refreshTokenBody, refreshTokenMiddleware } from '~/middlewares/refreshT
 import {
   adminUpdateUserProfileBody,
   adminUpdateUserProfileBodyType,
+  changePasswordBody,
   loginUserBody,
   loginUserBodyType,
   registerUserBody,
@@ -31,13 +34,7 @@ const router = Router()
  * Request body
  * roles: Admin
  */
-router.post(
-  '/register',
-  //accessTokenMiddleware,
-  //checkIsAdmin,
-  validate(registerUserBody),
-  registerUserController
-)
+router.post('/register', accessTokenMiddleware, checkIsAdmin, validate(registerUserBody), registerUserController)
 
 /**
  * Description: Verify Email sau khi đăng ký tài khoản thành công
@@ -60,12 +57,45 @@ router.get('/verify-email/:token', emailVerifyTokenMiddleware, verifyEmailContro
  * */
 router.post(
   '/resend-email-verify-token',
-  // accessTokenMiddleware,
-  // checkIsAdmin,
-  // adminResendEmailLimiter,
+  accessTokenMiddleware,
+  checkIsAdmin,
+  adminResendEmailLimiter,
   validate(resendEmailVerifyTokenBody),
   resendEmailVerifyTokenController
 )
+
+/**
+ * Description: Change Password sau khi verify email
+ * Method: PATCH
+ * Request: /users/change-password
+ * Request body: { new_password: string }
+ * Check email verified
+ */
+
+router.patch(
+  '/change-password',
+  accessTokenMiddleware,
+  checkIsEmailVerified,
+  validate(changePasswordBody),
+  changePasswordController
+)
+
+/**
+ * Description: Admin thay đổi thông tin user
+ * Method: PATCH
+ * Request: /users/update-profile/:id
+ * Request Header: Authorization
+ * Roles: Admin
+ */
+
+router.patch(
+  '/update-profile/:id',
+  accessTokenMiddleware,
+  checkIsAdmin,
+  validate(adminUpdateUserProfileBody),
+  adminUpdateUserProfileController
+)
+
 /**
  * Description: Đăng nhập tài khoản
  * Method: POST
@@ -73,7 +103,7 @@ router.post(
  * Request body
  *
  */
-router.post('/login', validate(loginUserBody), loginUserController)
+router.post('/login', checkIsEmailVerified, validate(loginUserBody), loginUserController)
 
 /**
  * Description: Verify Device sau khi đăng nhập

@@ -7,6 +7,8 @@ import tryCatchHandler from '~/utils/trycatchHandler'
 import { config } from 'dotenv'
 import { verifyToken } from '~/utils/jwt'
 import { z } from 'zod'
+import { loginUserBodyType } from './users.middlewares'
+import Users from '~/models/Users.schema'
 config()
 
 export const accessTokenPayloadSchema = z.object({
@@ -30,7 +32,7 @@ export const accessTokenMiddleware = tryCatchHandler(async (req: Request, res: R
   try {
     const decoded = await verifyToken(accessToken, process.env.ACCESS_TOKEN as string)
     req.user = decoded
-
+    console.log(req.user)
     req.isAdmin = req.user.role === 0
     next()
   } catch (error) {
@@ -51,6 +53,7 @@ export const accessTokenMiddleware = tryCatchHandler(async (req: Request, res: R
 
 // Check admin
 export const checkIsAdmin = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
+  console.log(req.isAdmin)
   if (!req.isAdmin) {
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.USER_IS_NOT_ADMIN,
@@ -62,7 +65,9 @@ export const checkIsAdmin = tryCatchHandler(async (req: Request, res: Response, 
 
 // Check email đã được xác thực chưa
 export const checkIsEmailVerified = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const { email_verified } = req.user as JwtPayload
+  const { username } = req.body as loginUserBodyType
+  const email_verified = await Users.findOne({ username }).select('email_verified')
+
   if (!email_verified) {
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.USER_EMAIL_NOT_VERIFIED,

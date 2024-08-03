@@ -1,4 +1,5 @@
-import mongoose from 'mongoose'
+import _ from 'lodash'
+import mongoose, { ObjectId } from 'mongoose'
 import { Roles } from '~/constants/enum'
 
 export interface IUser extends mongoose.Document {
@@ -27,7 +28,7 @@ export interface IUser extends mongoose.Document {
     count: number
   }
   locked: boolean
-  isLocked: () => boolean
+  device: ObjectId[]
 }
 
 const Schema = mongoose.Schema
@@ -52,12 +53,12 @@ const UserSchema = new Schema<IUser>(
     },
     last_name: {
       type: String,
-      required: true,
-      index: true
+      required: true
     },
     full_name: {
       type: String,
-      required: true
+      required: true,
+      index: true
     },
     email: {
       type: String,
@@ -124,13 +125,52 @@ const UserSchema = new Schema<IUser>(
     locked: {
       type: Boolean,
       default: false
-    }
+    },
+    device: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Devices'
+      }
+    ]
   },
 
   {
     timestamps: true
   }
 )
+/// Hàm viết hoa chữ cái đầu
+function capitalizeFirstLetter(str: string): string {
+  return _.join(_.map(_.split(str, ' '), _.capitalize), ' ')
+}
+
+// Middleware để viết hoa first_name và last_name trước khi lưu
+UserSchema.pre('save', function (next) {
+  if (this.isModified('first_name')) {
+    this.first_name = capitalizeFirstLetter(this.first_name)
+  }
+  if (this.isModified('last_name')) {
+    this.last_name = capitalizeFirstLetter(this.last_name)
+  }
+  if (this.isModified('full_name')) {
+    this.full_name = capitalizeFirstLetter(this.full_name)
+  }
+  next()
+})
+
+// Middleware để viết hoa first_name và last_name trước khi cập nhật
+UserSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate() as { first_name?: string; last_name?: string; full_name?: string }
+  if (update.first_name) {
+    update.first_name = capitalizeFirstLetter(update.first_name)
+  }
+  if (update.last_name) {
+    update.last_name = capitalizeFirstLetter(update.last_name)
+  }
+  if (update.full_name) {
+    update.full_name = capitalizeFirstLetter(update.full_name)
+  }
+  next()
+})
 
 // Thêm virtual property 'id'
 UserSchema.virtual('id').get(function (this: mongoose.Document) {
@@ -154,6 +194,8 @@ UserSchema.set('toObject', {
     return ret
   }
 })
+
+UserSchema.index({ username: 1, email: 1, employee_code: 1, frist_name: 1, full_name: 1 }, { unique: true })
 
 const Users = mongoose.model('Users', UserSchema)
 
