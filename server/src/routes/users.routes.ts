@@ -5,7 +5,7 @@ import {
   loginUserController,
   registerUserController,
   resendEmailVerifyTokenController,
-  verifyDeviceController,
+  // verifyDeviceController,
   verifyEmailController
 } from '~/controller/users.controller'
 import { accessTokenMiddleware, checkIsAdmin, checkIsEmailVerified } from '~/middlewares/accessToken.middlewares'
@@ -113,7 +113,7 @@ router.post('/login', checkIsEmailVerified, validate(loginUserBody), loginUserCo
  *
  */
 
-router.get('/verify-device/:token', emailVerifyDeviceTokenMiddleware, verifyDeviceController)
+// router.get('/verify-device/:token', emailVerifyDeviceTokenMiddleware, verifyDeviceController)
 
 // // /**
 // //  * Description: Refresh Token

@@ -114,12 +114,12 @@ export const loginUserController = tryCatchHandler(async (req: Request, res: Res
 /**
  * Description: Verify Device sau khi đăng nhập
  */
-export const verifyDeviceController = tryCatchHandler(async (req: Request, res: Response) => {
-  const { token } = req.params as emailVerifyTokenParamsType
-  const { id, device_id } = req.decoded_email_verify_device_token as JwtPayload
-  const result = await userService.verifyDevice({ id, token, device_id })
-  return res.json(result)
-})
+// export const verifyDeviceController = tryCatchHandler(async (req: Request, res: Response) => {
+//   const { token } = req.params as emailVerifyTokenParamsType
+//   const { id, device_id } = req.decoded_email_verify_device_token as JwtPayload
+//   const result = await userService.verifyDevice({ id, token, device_id })
+//   return res.json(result)
+// })
 
 // /**
 //  * Description: Refresh Token

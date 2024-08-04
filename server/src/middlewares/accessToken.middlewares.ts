@@ -32,8 +32,7 @@ export const accessTokenMiddleware = tryCatchHandler(async (req: Request, res: R
   try {
     const decoded = await verifyToken(accessToken, process.env.ACCESS_TOKEN as string)
     req.user = decoded
-    console.log(req.user)
-    req.isAdmin = req.user.role === 0
+
     next()
   } catch (error) {
     if (error instanceof TokenExpiredError) {
@@ -53,8 +52,16 @@ export const accessTokenMiddleware = tryCatchHandler(async (req: Request, res: R
 
 // Check admin
 export const checkIsAdmin = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
-  console.log(req.isAdmin)
-  if (!req.isAdmin) {
+  const { id } = req.user as JwtPayload
+  const user = await Users.findById(id).select('role')
+  if (!user) {
+    throw new ErrorWithStatusCode({
+      message: USER_MESSAGE.USER_NOT_FOUND,
+      statusCode: httpStatus.NOT_FOUND
+    })
+  }
+  req.isAdmin = user.role === 0
+  if (req.isAdmin == !0) {
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.USER_IS_NOT_ADMIN,
       statusCode: httpStatus.FORBIDDEN
@@ -67,12 +74,12 @@ export const checkIsAdmin = tryCatchHandler(async (req: Request, res: Response, 
 export const checkIsEmailVerified = tryCatchHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { username } = req.body as loginUserBodyType
   const email_verified = await Users.findOne({ username }).select('email_verified')
-
-  if (!email_verified) {
+  if (!email_verified || !email_verified.email_verified) {
     throw new ErrorWithStatusCode({
       message: USER_MESSAGE.USER_EMAIL_NOT_VERIFIED,
       statusCode: httpStatus.FORBIDDEN
     })
   }
+
   next()
 })

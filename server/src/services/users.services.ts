@@ -168,17 +168,26 @@ class UserService {
     return refresh_token
   }
 
-  // Kiểm tra device và tạo device mới
-  private async checkDeviceAndUpdateLastLogin(user: IUser, device_id: string) {
-    // Kiểm tra thiết bị và user_id đã tồn tại trong db Device chưa
+  // Kiểm tra user_id và device_id đã tồn tại trong db Device chưa
+  // Nếu chưa thì tạo mới
+  private async checkUpdateAndCreateDevice(user: IUser, device_id: string) {
     const device = await Device.findOneAndUpdate(
       { user_id: user.id, device_id },
       { last_login: new Date() },
-      {
-        upsert: true,
-        new: true
-      }
+      { new: true }
     )
+    if (!device) {
+      const newDevice = await Device.create({
+        user_id: user.id,
+        device_id,
+        type: 'unknown',
+        os: 'unknown',
+        browser: 'unknown',
+        ip: 'unknown',
+        last_login: new Date()
+      })
+      return newDevice
+    }
     return device
   }
 
@@ -354,7 +363,7 @@ class UserService {
       }
 
       const [updatedDevice, access_token, refresh_token] = await Promise.all([
-        this.checkDeviceAndCreateNewDevice(updatedUser, deviceInfo.device_id),
+        this.checkUpdateAndCreateDevice(updatedUser, deviceInfo.device_id),
 
         this.generateAccessToken({
           id: updatedUser.id,
@@ -375,7 +384,11 @@ class UserService {
       }
 
       // Cập nhật refresh token cho thiết bị lưu vào db
+
       await this.checkRefreshTokenAndCreateNewRefreshToken(updatedUser, updatedDevice.device_id, refresh_token)
+      // Cập nhật device vào user
+      updatedUser.device.push(updatedDevice.id)
+      await updatedUser.save()
 
       await session.commitTransaction()
       const response: verifyEmailResType = {
@@ -610,8 +623,8 @@ class UserService {
         })
       }
       // Kiểm tra thiết bị và user_id đã tồn tại trong db Device chưa
-      const existDevice = await this.checkDeviceAndCreateNewDevice(user, device_id)
-      console.log(existDevice)
+      const existDevice = await Device.findOne({ user_id: user.id, device_id }).session(session)
+
       if (!existDevice) {
         const emailVerifyDeviceToken = await this.generateEmailVerifyDeviceToken({
           id: user.id,
@@ -637,7 +650,6 @@ class UserService {
           message: USER_MESSAGE.VERIFY_DEVICE_SENT
         }
       }
-      return 'ok'
       // Cập nhật last_login và device_id cho user
       existDevice.last_login = new Date()
       existDevice.device_id = device_id
@@ -678,86 +690,132 @@ class UserService {
           refreshToken
         }
       }
+
       return response
     })
   }
-
-  /**
-   * Description: Verify Device sau khi đăng nhập
-   * Req.params: token
-   * Req.decoded_email_verify_device_token: _id, device_id
-   * Response: message
-   * @param data
-   * @returns
-   */
-
-  async verifyDevice({ id, token, device_id }: { id: string; token: string; device_id: string }) {
-    return databaseService.withTransaction(async (session) => {
-      // Tìm user theo _id
-      const user = await Users.findById(id, token).session(session)
-      if (!user) {
-        throw new ErrorWithStatusCode({
-          message: USER_MESSAGE.USER_NOT_FOUND,
-          statusCode: httpStatus.NOT_FOUND
-        })
-      }
-
-      // Kiểm tra số lượng thiết bị hiện tại
-      const devices = await Device.find({ user_id: user._id }).session(session)
-
-      if (devices.length >= 3) {
-        await session.abortTransaction()
-        return {
-          message: USER_MESSAGE.TOO_MANY_DEVICES,
-          data: {
-            devices: devices.map((device) => ({
-              device_id: device.device_id,
-              type: device.type,
-              os: device.os,
-              browser: device.browser,
-              ip: device.ip
-            })),
-            deleteDeviceUrl: `${process.env.CLIENT_URL}/delete-device`
-          },
-          statusCode: httpStatus.CONFLICT
-        }
-      }
-
-      if (!user._id || !device_id) {
-        throw new ErrorWithStatusCode({
-          message: USER_MESSAGE.INVALID_DATA,
-          statusCode: httpStatus.BAD_REQUEST
-        })
-      }
-
-      // Thêm thiết bị mới
-      const device = await Device.create({
-        user_id: user._id,
-        device_id: device_id,
-        type: 'unknown',
-        os: 'unknown',
-        browser: 'unknown',
-        ip: 'unknown'
-      })
-      console.log(device)
-      // Cập nhật email_verify_device_token
-      await Users.findByIdAndUpdate(user._id, { email_verify_device_token: '' }).session(session)
-
-      const newRefreshToken = await RefreshToken.create({
-        user_id: id,
-        device: device.device_id,
-        refresh_token: '',
-        expires: ''
-      })
-      console.log(newRefreshToken)
-
-      await session.commitTransaction()
-      return {
-        message: USER_MESSAGE.VERIFY_DEVICE_SUCCESSFULLY
-      }
-    })
-  }
 }
+
+//     // Cập nhật last_login và device_id cho user
+//     existDevice.last_login = new Date()
+//     existDevice.device_id = device_id
+//     await existDevice.save({ session })
+
+//     // Tạo AccessToken và RefreshToken
+//     const [accessToken, refreshToken] = await Promise.all([
+//       this.generateAccessToken({
+//         id: user.id,
+//         role: user.role,
+//         email_verified: user.email_verified
+//       }),
+//       this.generateRefreshToken({
+//         id: user.id
+//       })
+//     ])
+
+//     const expires = new Date(Date.now() + ms(process.env.EXPIRE_REFRESH_TOKEN as string))
+
+//     // Cập nhật refresh token cho thiết bị lưu vào db
+//     await RefreshToken.findOneAndUpdate(
+//       {
+//         user_id: user.id,
+//         device: device_id
+//       },
+//       {
+//         refresh_token: refreshToken,
+//         expires
+//       },
+//       { upsert: true, new: true }
+//     ).session(session)
+
+//     await session.commitTransaction()
+//     const response: loginUserResType = {
+//       message: USER_MESSAGE.LOGIN_SUCCESSFULLY,
+//       data: {
+//         accessToken,
+//         refreshToken
+//       }
+//     }
+//     return response
+//   })
+// }
+
+//   /**
+//    * Description: Verify Device sau khi đăng nhập
+//    * Req.params: token
+//    * Req.decoded_email_verify_device_token: _id, device_id
+//    * Response: message
+//    * @param data
+//    * @returns
+//    */
+
+//   async verifyDevice({ id, token, device_id }: { id: string; token: string; device_id: string }) {
+//     return databaseService.withTransaction(async (session) => {
+//       // Tìm user theo _id
+//       const user = await Users.findById(id, token).session(session)
+//       if (!user) {
+//         throw new ErrorWithStatusCode({
+//           message: USER_MESSAGE.USER_NOT_FOUND,
+//           statusCode: httpStatus.NOT_FOUND
+//         })
+//       }
+
+//       // Kiểm tra số lượng thiết bị hiện tại
+//       const devices = await Device.find({ user_id: user._id }).session(session)
+
+//       if (devices.length >= 3) {
+//         await session.abortTransaction()
+//         return {
+//           message: USER_MESSAGE.TOO_MANY_DEVICES,
+//           data: {
+//             devices: devices.map((device) => ({
+//               device_id: device.device_id,
+//               type: device.type,
+//               os: device.os,
+//               browser: device.browser,
+//               ip: device.ip
+//             })),
+//             deleteDeviceUrl: `${process.env.CLIENT_URL}/delete-device`
+//           },
+//           statusCode: httpStatus.CONFLICT
+//         }
+//       }
+
+//       if (!user._id || !device_id) {
+//         throw new ErrorWithStatusCode({
+//           message: USER_MESSAGE.INVALID_DATA,
+//           statusCode: httpStatus.BAD_REQUEST
+//         })
+//       }
+
+//       // Thêm thiết bị mới
+//       const device = await Device.create({
+//         user_id: user._id,
+//         device_id: device_id,
+//         type: 'unknown',
+//         os: 'unknown',
+//         browser: 'unknown',
+//         ip: 'unknown'
+//       })
+//       console.log(device)
+//       // Cập nhật email_verify_device_token
+//       await Users.findByIdAndUpdate(user._id, { email_verify_device_token: '' }).session(session)
+
+//       const newRefreshToken = await RefreshToken.create({
+//         user_id: id,
+//         device: device.device_id,
+//         refresh_token: '',
+//         expires: ''
+//       })
+//       console.log(newRefreshToken)
+
+//       await session.commitTransaction()
+//       return {
+//         message: USER_MESSAGE.VERIFY_DEVICE_SUCCESSFULLY
+//       }
+//     })
+//   }
+// }
 
 export const userService = UserService.getInstance()
 
